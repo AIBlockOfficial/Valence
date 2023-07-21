@@ -12,3 +12,6 @@ pub struct GetRequestData {
 // Custom error type for invalid signature
 #[derive(Debug)]
 pub struct InvalidSignature;
+
+#[derive(Debug)]
+pub struct DBInsertionFailed;

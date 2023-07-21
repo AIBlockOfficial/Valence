@@ -1,22 +1,34 @@
+use std::sync::Arc;
+use futures::lock::Mutex;
 use std::convert::Infallible;
 use warp::{Filter, Rejection, Reply};
 use crate::interfaces::InvalidSignature;
 use crate::handlers::set_data as set_data_handler;
 use crate::handlers::get_data as get_data_handler;
 
+// Clone component/struct to use in route
+pub fn with_node_component<T: Clone + Send>(
+    comp: T,
+) -> impl Filter<Extract = (T,), Error = Infallible> + Clone {
+    warp::any().map(move || comp.clone())
+}
 
 /// ========== ROUTES ========== ///
 
-pub fn get_data() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+pub fn get_data(redis_db: Arc<Mutex<redis::aio::ConnectionManager>>) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("get_data")
-        .and_then(get_data_handler)
-        .with(get_cors())
+        .and(warp::body::json())
+        .and(with_node_component(redis_db))
+        .and_then(move |info, data| get_data_handler(info, data))
+        .recover(handle_rejection)
+        .with(post_cors())
 }
 
-pub fn set_data() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+pub fn set_data(redis_db: Arc<Mutex<redis::aio::ConnectionManager>>) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("set_data")
         .and(warp::body::json())
-        .and_then(set_data_handler)
+        .and(with_node_component(redis_db))
+        .and_then(|info, data| set_data_handler(info, data))
         .recover(handle_rejection)
         .with(post_cors())
 }
