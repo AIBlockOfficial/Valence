@@ -2,7 +2,9 @@ use std::sync::Arc;
 use futures::lock::Mutex;
 use redis::{AsyncCommands, RedisResult};
 
-pub async fn redis_get_connection(url: &str) -> Arc<Mutex<redis::aio::ConnectionManager>> {
+/// ======= REDIS FUNCTIONS ======= ///
+
+pub async fn redis_init(url: &str) -> Arc<Mutex<redis::aio::ConnectionManager>> {
     let redis_client = redis::Client::open(url).unwrap();
     let redis_connection_manager = redis::aio::ConnectionManager::new(redis_client).await.unwrap();
     
