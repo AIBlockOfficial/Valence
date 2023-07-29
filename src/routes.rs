@@ -32,9 +32,10 @@ pub fn set_data(
     redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("set_data")
+        .and(sig_verify_middleware())
         .and(warp::body::json())
         .and(with_node_component(redis_db))
-        .and_then(|info, data| set_data_handler(info, data))
+        .and_then(move |_, info, data| set_data_handler(info, data))
         .recover(handle_rejection)
         .with(post_cors())
 }
