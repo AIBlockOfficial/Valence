@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
 use crate::crypto::sign_ed25519 as sign;
 use crate::crypto::sign_ed25519::{PublicKey, Signature};
+use serde::{Deserialize, Serialize};
 
 // Function to validate the signature using Ed25519
 pub fn validate_signature(public_key: &str, msg: &str, signature: &str) -> bool {

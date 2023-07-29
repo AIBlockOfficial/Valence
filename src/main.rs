@@ -1,14 +1,14 @@
 // main.rs
-pub mod db;
-pub mod utils;
 pub mod crypto;
-pub mod routes;
+pub mod db;
 pub mod handlers;
 pub mod interfaces;
+pub mod routes;
+pub mod utils;
 
-use warp::Filter;
 use crate::db::redis_init;
-use crate::routes::{get_data, set_data};
+use crate::routes::*;
+use warp::Filter;
 
 #[tokio::main]
 async fn main() {

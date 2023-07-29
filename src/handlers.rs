@@ -1,17 +1,20 @@
-use std::sync::Arc;
+use crate::db::{ redis_get_data, redis_set_data };
+use crate::interfaces::{ DBInsertionFailed, GetRequestData, InvalidSignature };
+use crate::utils::{ deserialize_data, serialize_data };
 use futures::lock::Mutex;
-use warp::Rejection;
 use std::convert::Infallible;
-use crate::db::{redis_set_data, redis_get_data};
-use crate::utils::{validate_signature, serialize_data, deserialize_data};
-use crate::interfaces::{InvalidSignature, GetRequestData, DBInsertionFailed};
+use std::sync::Arc;
+use warp::Rejection;
 
 // Implement a custom reject for the error types
 impl warp::reject::Reject for InvalidSignature {}
 impl warp::reject::Reject for DBInsertionFailed {}
 
 // Route to get data from DB
-pub async fn get_data(data: GetRequestData, redis_db: Arc<Mutex<redis::aio::ConnectionManager>>) -> Result<impl warp::Reply, Infallible> {
+pub async fn get_data(
+    data: GetRequestData,
+    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
+) -> Result<impl warp::Reply, Infallible> {
     let final_data = match redis_get_data(redis_db, &data.address).await {
         Ok(value) => deserialize_data(value),
         Err(_) => String::from("No data found"),
@@ -21,18 +24,12 @@ pub async fn get_data(data: GetRequestData, redis_db: Arc<Mutex<redis::aio::Conn
 }
 
 // Route to set data (validate the signature)
-pub async fn set_data(data: GetRequestData, redis_db: Arc<Mutex<redis::aio::ConnectionManager>>) -> Result<impl warp::Reply, Rejection> {
-    // Validate the signature
-    if validate_signature(&data.public_key, &data.address, &data.signature) {
-        println!("Received data: {:?}", data);
-        
-        match redis_set_data(redis_db, &data.address.clone(), &serialize_data(data.clone())).await {
-            Ok(_) => Ok(warp::reply::json(&data)),
-            Err(_) => Err(warp::reject::custom(DBInsertionFailed)),
-        }
-        
-    } else {
-        // Return an error if the signature is invalid
-        Err(warp::reject::custom(InvalidSignature))
+pub async fn set_data(
+    data: GetRequestData,
+    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
+) -> Result<impl warp::Reply, Rejection> {
+    match redis_set_data(redis_db, &data.address.clone(), &serialize_data(data.clone())).await {
+        Ok(_) => Ok(warp::reply::json(&data)),
+        Err(_) => Err(warp::reject::custom(DBInsertionFailed)),
     }
 }

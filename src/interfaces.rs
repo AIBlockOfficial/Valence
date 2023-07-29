@@ -8,7 +8,6 @@ pub struct GetRequestData {
     pub signature: String,
 }
 
-
 // Custom error type for invalid signature
 #[derive(Debug)]
 pub struct InvalidSignature;
