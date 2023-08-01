@@ -2,9 +2,7 @@ use futures::lock::Mutex;
 use redis::{AsyncCommands, RedisResult};
 use std::sync::Arc;
 
-/// ======= REDIS FUNCTIONS ======= ///
-
-pub async fn redis_init(url: &str) -> Arc<Mutex<redis::aio::ConnectionManager>> {
+pub async fn init_cache(url: &str) -> Arc<Mutex<redis::aio::ConnectionManager>> {
     let redis_client = redis::Client::open(url).unwrap();
     let redis_connection_manager = redis::aio::ConnectionManager::new(redis_client)
         .await
@@ -13,7 +11,7 @@ pub async fn redis_init(url: &str) -> Arc<Mutex<redis::aio::ConnectionManager>> 
     Arc::new(Mutex::new(redis_connection_manager))
 }
 
-pub async fn redis_set_data(
+pub async fn set_data_in_cache(
     connection: Arc<Mutex<redis::aio::ConnectionManager>>,
     key: &str,
     value: &str,
@@ -22,7 +20,7 @@ pub async fn redis_set_data(
     connection_ref.set(key, value).await
 }
 
-pub async fn redis_get_data(
+pub async fn get_data_from_cache(
     connection: Arc<Mutex<redis::aio::ConnectionManager>>,
     key: &str,
 ) -> RedisResult<String> {

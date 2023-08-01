@@ -12,6 +12,10 @@ pub struct SetRequestData {
     pub data: String,
 }
 
+pub struct AddOrderRequestData {
+    
+}
+
 pub struct EnvConfig {
     pub debug: bool,
     pub extern_port: String,

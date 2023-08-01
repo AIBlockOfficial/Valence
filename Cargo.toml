@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 config = "0.13.3"
 futures = "0.3.28"
+mongodb = "2.6.0"
+rand = "0.8.5"
 redis = { version = "0.23.0", features=["aio", "connection-manager", "tokio-comp", "async-std-comp"]}
 ring = "0.16.20"
 serde = { version = "1.0.173", features=["derive"] }

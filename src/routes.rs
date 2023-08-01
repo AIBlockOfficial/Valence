@@ -1,5 +1,4 @@
-use crate::handlers::get_data as get_data_handler;
-use crate::handlers::set_data as set_data_handler;
+use crate::handlers::{get_data_handler, set_data_handler};
 use crate::utils::validate_signature;
 use crate::interfaces::InvalidSignature;
 use futures::lock::Mutex;
@@ -14,7 +13,7 @@ pub fn with_node_component<T: Clone + Send>(
     warp::any().map(move || comp.clone())
 }
 
-/// ========== ROUTES ========== ///
+/// ========== BASE ROUTES ========== ///
 
 pub fn get_data(
     redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
@@ -36,6 +35,19 @@ pub fn set_data(
         .and(warp::body::json())
         .and(with_node_component(redis_db))
         .and_then(move |_, info, data| set_data_handler(info, data))
+        .recover(handle_rejection)
+        .with(post_cors())
+}
+
+/// ========== HIGHER LEVEL ROUTES ========== ///
+
+pub fn add_order(
+    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    warp::path("add_order")
+        .and(warp::body::json())
+        .and(with_node_component(redis_db))
+        .and_then(move |info, data| set_data_handler(info, data))
         .recover(handle_rejection)
         .with(post_cors())
 }
