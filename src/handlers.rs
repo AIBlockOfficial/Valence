@@ -1,5 +1,12 @@
+use crate::db::mongo_db::{ insert_document, MongoDbIndex };
 use crate::db::redis_cache::{ get_data_from_cache, set_data_in_cache };
-use crate::interfaces::{ DBInsertionFailed, GetRequestData, SetRequestData, InvalidSignature };
+use crate::interfaces::{
+    DBInsertionFailed,
+    GetRequestData,
+    InvalidSignature,
+    SetRequestData,
+    CacheInsertionFailed,
+};
 use crate::utils::{ deserialize_data, serialize_data };
 use futures::lock::Mutex;
 use std::convert::Infallible;
@@ -9,13 +16,14 @@ use warp::Rejection;
 // Implement a custom reject for the error types
 impl warp::reject::Reject for InvalidSignature {}
 impl warp::reject::Reject for DBInsertionFailed {}
+impl warp::reject::Reject for CacheInsertionFailed {}
 
 // Route to get data from DB
 pub async fn get_data_handler(
     payload: GetRequestData,
-    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
+    redis_cache: Arc<Mutex<redis::aio::ConnectionManager>>
 ) -> Result<impl warp::Reply, Infallible> {
-    let final_data = match get_data_from_cache(redis_db, &payload.address).await {
+    let final_data = match get_data_from_cache(redis_cache, &payload.address).await {
         Ok(value) => deserialize_data(value),
         Err(_) => String::from("No data found"),
     };
@@ -26,11 +34,32 @@ pub async fn get_data_handler(
 // Route to set data (validate the signature)
 pub async fn set_data_handler(
     payload: SetRequestData,
-    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>
+    mongo_db: Arc<Mutex<mongodb::Client>>,
+    redis_cache: Arc<Mutex<redis::aio::ConnectionManager>>,
+    mongo_config: MongoDbIndex
 ) -> Result<impl warp::Reply, Rejection> {
-    match set_data_in_cache(redis_db, &payload.address.clone(), &serialize_data(payload.data.clone())).await {
-        Ok(_) => Ok(warp::reply::json(&payload.data)),
-        Err(_) => Err(warp::reject::custom(DBInsertionFailed)),
+    let cache_result = set_data_in_cache(
+        redis_cache,
+        &payload.address.clone(),
+        &serialize_data(payload.data.clone())
+    ).await;
+
+    match cache_result {
+        Ok(_) =>
+            match
+                insert_document(
+                    &mongo_db,
+                    &mongo_config.db_name,
+                    &mongo_config.coll_name,
+                    payload.data
+                ).await
+            {
+                Ok(_) => Ok(warp::reply::json(&"".to_string())), // TODO: Return a proper response
+                Err(_) => Err(warp::reject::custom(DBInsertionFailed)),
+            }
+        Err(_) => {
+            return Err(warp::reject::custom(CacheInsertionFailed));
+        }
     }
 }
 

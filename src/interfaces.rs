@@ -12,16 +12,17 @@ pub struct SetRequestData {
     pub data: String,
 }
 
-pub struct AddOrderRequestData {
-    
-}
+pub struct AddOrderRequestData {}
 
 pub struct EnvConfig {
     pub debug: bool,
     pub extern_port: String,
     pub db_url: String,
     pub db_port: String,
-    pub db_password: String
+    pub db_password: String,
+    pub cache_url: String,
+    pub cache_port: String,
+    pub cache_password: String,
 }
 
 // Custom error type for invalid signature
@@ -30,3 +31,6 @@ pub struct InvalidSignature;
 
 #[derive(Debug)]
 pub struct DBInsertionFailed;
+
+#[derive(Debug)]
+pub struct CacheInsertionFailed;
