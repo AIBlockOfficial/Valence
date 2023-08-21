@@ -6,8 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.73"
 chrono = "0.4.26"
 config = "0.13.3"
+cuckoofilter = "0.5.0"
 futures = "0.3.28"
 mongodb = "2.6.0"
 rand = "0.8.5"

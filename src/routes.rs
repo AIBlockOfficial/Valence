@@ -1,4 +1,4 @@
-use crate::db::mongo_db::MongoDbIndex;
+use crate::db::handler::DbConnection;
 use crate::handlers::{get_data_handler, set_data_handler};
 use crate::interfaces::InvalidSignature;
 use crate::utils::validate_signature;
@@ -16,30 +16,34 @@ pub fn with_node_component<T: Clone + Send>(
 
 /// ========== BASE ROUTES ========== ///
 
-pub fn get_data(
-    redis_db: Arc<Mutex<redis::aio::ConnectionManager>>,
+pub fn get_data<D: DbConnection + Clone + Send>(
+    db: D,
+    cache: Arc<Mutex<redis::aio::ConnectionManager>>,
+    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<String>>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("get_data")
         .and(sig_verify_middleware())
         .and(warp::body::json())
-        .and(with_node_component(redis_db))
-        .and_then(move |_, data, db| get_data_handler(data, db))
+        .and(with_node_component(cache))
+        .and(with_node_component(db))
+        .and(with_node_component(cuckoo_filter))
+        .and_then(move |_, data, cache, db, cf| get_data_handler(data, cf, db))
         .recover(handle_rejection)
         .with(post_cors())
 }
 
-pub fn set_data(
-    redis_cache: Arc<Mutex<redis::aio::ConnectionManager>>,
-    mongo_db: Arc<Mutex<mongodb::Client>>,
-    mongo_config: MongoDbIndex,
+pub fn set_data<D: DbConnection + Clone + Send>(
+    db: D,
+    cache: Arc<Mutex<redis::aio::ConnectionManager>>,
+    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<String>>>
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("set_data")
         .and(sig_verify_middleware())
         .and(warp::body::json())
-        .and(with_node_component(redis_cache))
-        .and(with_node_component(mongo_db))
-        .and(with_node_component(mongo_config))
-        .and_then(move |_, info, cache, db, db_config| set_data_handler(info, db, cache, db_config))
+        .and(with_node_component(cache))
+        .and(with_node_component(db))
+        .and(with_node_component(cuckoo_filter))
+        .and_then(move |_, info, cache, db, cf| set_data_handler(info, db, cache, cf))
         .recover(handle_rejection)
         .with(post_cors())
 }
@@ -53,7 +57,7 @@ fn post_cors() -> warp::cors::Builder {
         .allow_any_origin()
         .allow_headers(vec![
             "Accept",
-            "User-Agent",
+            "User-Agent",,,
             "Sec-Fetch-Mode",
             "Referer",
             "Origin",

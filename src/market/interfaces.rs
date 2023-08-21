@@ -1,6 +1,6 @@
-use crate::utils::{construct_druid, construct_formatted_date};
-use serde::{Deserialize, Serialize};
-use std::cmp::min;
+use crate::utils::{ construct_druid, construct_formatted_date };
+use serde::{ Deserialize, Serialize };
+use std::{cmp::min, collections::HashSet};
 
 /// A pending trade within the orderbook that will need to be resolved on chain
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,68 +30,51 @@ pub struct Order {
 pub struct OrderBook {
     pub bids: Vec<Order>,
     pub asks: Vec<Order>,
+    pub present_orders: HashSet<String>,
     pub pending_trades: Vec<PendingTrade>,
 }
 
 impl OrderBook {
+    /// Creates a new orderbook
     pub fn new() -> Self {
         OrderBook {
             bids: Vec::new(),
             asks: Vec::new(),
+            present_orders: HashSet::new(),
             pending_trades: Vec::new(),
         }
     }
 
-    /// Adds an order to the order book
+    /// Checks if an order is present in the orderbook
+    pub fn is_order_present(&self, order_id: &str) -> bool {
+        self.present_orders.contains(order_id)
+    }
+
+    /// Adds an order to the orderbook, matching it with any existing orders
     ///
     /// ### Arguments
     ///
-    /// * `order` - The order to be added
-    pub fn add_order(&mut self, order: Order) {
-        if order.is_bid {
-            self.match_bid(&mut order.clone());
-        } else {
-            self.match_ask(&mut order.clone());
-        }
-    }
-
-    pub fn match_ask(&mut self, ask: &mut Order) {
-        let mut bid_idx = 0;
-
-        // Loop is required to match an ask with multiple bids
-        while bid_idx < self.bids.len() {
-            let bid = &self.bids[bid_idx];
-
-            if bid.price >= ask.price {
-                self.construct_pending_trade(ask, bid_idx, bid.quantity);
-                self.clean_up_empty_orders(&None, &Some(bid_idx));
-                bid_idx += 1;
-            } else {
-                self.insert_order_in_list(ask.clone(), false);
-                break;
-            }
-        }
-    }
-
-    /// Matches a bid with the lowest ask, if possible. If not possible,
-    /// the bid is added to the order book
-    ///
-    /// ### Arguments
-    ///
-    /// * `bid` - The bid to be matched
-    pub fn match_bid(&mut self, bid: &mut Order) {
-        let mut ask_idx = 0;
+    /// * `current_order` - The order to be added
+    pub fn add_order(&mut self, current_order: &mut Order) {
+        let mut list_idx = 0;
+        let mut match_list = if current_order.is_bid { &mut self.asks } else { &mut self.bids };
 
         // Loop is required to match a bid with multiple asks
-        while ask_idx < self.asks.len() {
-            let ask = &self.asks[ask_idx];
+        while list_idx < match_list.len() {
+            let match_order = &match_list[list_idx];
 
-            if ask.price <= bid.price {
-                self.construct_pending_trade(bid, ask_idx, ask.quantity);
-                self.clean_up_empty_orders(&Some(ask_idx), &None);
-                ask_idx += 1;
+            if
+                (current_order.is_bid && match_order.price <= current_order.price) ||
+                (!current_order.is_bid && match_order.price >= current_order.price)
+            {
+                let ask_idx = if current_order.is_bid { Some(list_idx) } else { None };
+                let bid_idx = if current_order.is_bid { None } else { Some(list_idx) };
+
+                self.construct_pending_trade(current_order, list_idx, match_order.quantity);
+                self.clean_up_empty_orders(&ask_idx, &bid_idx);
+                list_idx += 1;
             } else {
-                self.insert_order_in_list(bid.clone(), true);
+                self.insert_order_in_list(current_order.clone(), true);
                 break;
             }
         }
@@ -105,11 +88,7 @@ impl OrderBook {
     /// * `list_idx` - The index of the existing order to be matched
     /// * `list_quantity` - The quantity of the existing order to be matched
     fn construct_pending_trade(&mut self, order: &mut Order, list_idx: usize, list_quantity: u64) {
-        let match_list = if order.is_bid {
-            &mut self.asks
-        } else {
-            &mut self.bids
-        };
+        let match_list = if order.is_bid { &mut self.asks } else { &mut self.bids };
         let quantity = min(order.quantity, list_quantity);
         let pending_trade = PendingTrade {
             bid_id: order.id.clone(),
@@ -132,11 +111,7 @@ impl OrderBook {
     /// * `order` - The order to be inserted
     /// * `is_bid` - Whether the order is a bid or not
     fn insert_order_in_list(&mut self, order: Order, is_bid: bool) {
-        let order_list = if is_bid {
-            &mut self.bids
-        } else {
-            &mut self.asks
-        };
+        let order_list = if is_bid { &mut self.bids } else { &mut self.asks };
         let search_idx = find_index_for_order(order_list, &order.price);
         let idx = if order_list[search_idx].price > order.price && is_bid {
             search_idx + 1
@@ -145,6 +120,9 @@ impl OrderBook {
         };
 
         order_list.insert(idx, order);
+
+        // Add the order to the present orders list
+        self.present_orders.insert(order.id.clone());
     }
 
     /// Removes orders from the order book if they have no quantity left
@@ -155,11 +133,12 @@ impl OrderBook {
     /// * `bid_idx` - The index of the bid to be removed
     fn clean_up_empty_orders(&mut self, ask_idx: &Option<usize>, bid_idx: &Option<usize>) {
         if ask_idx.is_some() && self.asks[ask_idx.unwrap()].quantity == 0 {
-            let idx = ask_idx.unwrap();
-            self.asks.remove(idx);
+            self.present_orders.remove(&self.asks[ask_idx.unwrap()].id);
+            self.asks.remove(ask_idx.unwrap());
         }
 
         if bid_idx.is_some() && self.bids[bid_idx.unwrap()].quantity == 0 {
+            self.present_orders.remove(&self.bids[bid_idx.unwrap()].id);
             self.bids.remove(bid_idx.unwrap());
         }
     }

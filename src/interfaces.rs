@@ -34,3 +34,9 @@ pub struct DBInsertionFailed;
 
 #[derive(Debug)]
 pub struct CacheInsertionFailed;
+
+#[derive(Debug)]
+pub struct CuckooFilterInsertionFailed;
+
+#[derive(Debug)]
+pub struct CuckooFilterLookupFailed;
