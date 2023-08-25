@@ -54,12 +54,12 @@ pub fn validate_signature(public_key: &str, msg: &str, signature: &str) -> bool 
 }
 
 /// Function to serialize data
-pub fn serialize_data<T: Serialize + for<'a> Deserialize<'a>>(data: T) -> String {
-    serde_json::to_string(&data).unwrap()
+pub fn serialize_data<T: Serialize>(data: &T) -> String {
+    serde_json::to_string(data).unwrap()
 }
 
 /// Function to deserialize data
-pub fn deserialize_data<T: Serialize + for<'a> Deserialize<'a>>(data: String) -> T {
+pub fn deserialize_data<T: for<'a> Deserialize<'a>>(data: String) -> T {
     serde_json::from_str(&data).unwrap()
 }
 

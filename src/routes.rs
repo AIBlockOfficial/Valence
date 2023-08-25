@@ -1,8 +1,9 @@
-use crate::db::handler::DbConnection;
+use crate::db::handler::KvStoreConnection;
 use crate::handlers::{get_data_handler, set_data_handler};
 use crate::interfaces::InvalidSignature;
 use crate::utils::validate_signature;
 use futures::lock::Mutex;
+use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::sync::Arc;
 use warp::{Filter, Rejection, Reply};
@@ -16,10 +17,13 @@ pub fn with_node_component<T: Clone + Send>(
 
 /// ========== BASE ROUTES ========== ///
 
-pub fn get_data<D: DbConnection + Clone + Send>(
-    db: D,
-    cache: Arc<Mutex<redis::aio::ConnectionManager>>,
-    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<String>>>,
+pub fn get_data<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<DefaultHasher>>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("get_data")
         .and(sig_verify_middleware())
@@ -27,15 +31,18 @@ pub fn get_data<D: DbConnection + Clone + Send>(
         .and(with_node_component(cache))
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
-        .and_then(move |_, data, cache, db, cf| get_data_handler(data, cf, db))
+        .and_then(move |_, data, cache, db, cf| get_data_handler(db, cache, data, cf))
         .recover(handle_rejection)
         .with(post_cors())
 }
 
-pub fn set_data<D: DbConnection + Clone + Send>(
-    db: D,
-    cache: Arc<Mutex<redis::aio::ConnectionManager>>,
-    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<String>>>
+pub fn set_data<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    cuckoo_filter: Arc<Mutex<cuckoofilter::CuckooFilter<DefaultHasher>>>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("set_data")
         .and(sig_verify_middleware())
@@ -57,7 +64,7 @@ fn post_cors() -> warp::cors::Builder {
         .allow_any_origin()
         .allow_headers(vec![
             "Accept",
-            "User-Agent",,,
+            "User-Agent",
             "Sec-Fetch-Mode",
             "Referer",
             "Origin",

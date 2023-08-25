@@ -1,21 +1,14 @@
-use crate::db::handler::DbConnection;
-use crate::db::mongo_db::{ MongoDbIndex };
-use crate::db::redis_cache::{ get_data_from_cache, set_data_in_cache };
+use crate::db::handler::KvStoreConnection;
 use crate::interfaces::{
-    DBInsertionFailed,
-    GetRequestData,
-    InvalidSignature,
-    SetRequestData,
-    CacheInsertionFailed,
-    CuckooFilterInsertionFailed,
-    CuckooFilterLookupFailed
+    CacheInsertionFailed, CuckooFilterInsertionFailed, CuckooFilterLookupFailed, DBInsertionFailed,
+    GetRequestData, InvalidSignature, SetRequestData,
 };
-use crate::utils::{ deserialize_data, serialize_data };
+use crate::utils::{deserialize_data, serialize_data};
 use futures::lock::Mutex;
+use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
 use std::sync::Arc;
 use warp::Rejection;
-use std::hash::Hasher;
 
 // Implement a custom reject for the error types
 impl warp::reject::Reject for InvalidSignature {}
@@ -27,16 +20,18 @@ impl warp::reject::Reject for CuckooFilterLookupFailed {}
 /// ========= BASE HANDLERS ========= ///
 
 // Route to get data from DB
-pub async fn get_data_handler<T: Default + Hasher>(
+
+pub async fn get_data_handler<D: KvStoreConnection, C: KvStoreConnection>(
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
     payload: GetRequestData,
-    c_filter: Arc<Mutex<cuckoofilter::CuckooFilter<T>>>,
-    redis_cache: Arc<Mutex<redis::aio::ConnectionManager>>
+    c_filter: Arc<Mutex<cuckoofilter::CuckooFilter<DefaultHasher>>>,
 ) -> Result<impl warp::Reply, Rejection> {
     if !c_filter.lock().await.contains(&payload.address) {
         return Err(warp::reject::custom(CuckooFilterLookupFailed));
     }
 
-    let final_data = match get_data_from_cache(redis_cache, &payload.address).await {
+    let final_data = match cache.lock().await.get_data(&payload.address).await {
         Ok(value) => deserialize_data(value),
         Err(_) => String::from("No data found"),
     };
@@ -44,35 +39,48 @@ pub async fn get_data_handler<T: Default + Hasher>(
     Ok(warp::reply::json(&final_data))
 }
 
-// Route to set data (validate the signature)
-pub async fn set_data_handler<T: Default + Hasher, D: DbConnection>(
+/// Route to set data (validate the signature)
+pub async fn set_data_handler<D: KvStoreConnection, C: KvStoreConnection>(
     payload: SetRequestData,
-    db: D,
-    redis_cache: Arc<Mutex<redis::aio::ConnectionManager>>,
-    c_filter: Arc<Mutex<cuckoofilter::CuckooFilter<T>>>,
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    c_filter: Arc<Mutex<cuckoofilter::CuckooFilter<DefaultHasher>>>,
 ) -> Result<impl warp::Reply, Rejection> {
-    let cache_result = set_data_in_cache(
-        redis_cache,
-        &payload.address.clone(),
-        &serialize_data(payload.data.clone())
-    ).await;
+    // Add to cache
+    let cache_result = cache
+        .lock()
+        .await
+        .set_data(
+            &payload.address.clone(),
+            Arc::new(Mutex::new(serialize_data(payload.data.clone()))),
+        )
+        .await;
 
-    match cache_result {
-        Ok(_) =>
-            match
-                insert_document(
-                    &mongo_db,
-                    &mongo_config.db_name,
-                    &mongo_config.coll_name,
-                    payload.data
-                ).await
-            {
-                Ok(_) => Ok(warp::reply::json(&"".to_string())), // TODO: Return a proper response
-                Err(_) => Err(warp::reject::custom(DBInsertionFailed)),
-            }
+    // Add to DB
+    let db_data = Arc::new(Mutex::new(payload.data));
+    let db_result = match cache_result {
+        Ok(_) => {
+            db.lock()
+                .await
+                .set_data(&db_config.coll_name, db_data)
+                .await
+        }
         Err(_) => {
             return Err(warp::reject::custom(CacheInsertionFailed));
         }
+    };
+
+    // Add to cuckoo filter
+    let c_filter_result = match db_result {
+        Ok(_) => c_filter.lock().await.add(&payload.address),
+        Err(_) => {
+            return Err(warp::reject::custom(DBInsertionFailed));
+        }
+    };
+
+    match c_filter_result {
+        Ok(_) => Ok(warp::reply::json(&String::from("Data added successfully"))),
+        Err(_) => Err(warp::reject::custom(CuckooFilterInsertionFailed)),
     }
 }
 

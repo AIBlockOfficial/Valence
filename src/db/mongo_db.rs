@@ -1,10 +1,9 @@
-use futures::lock::Mutex;
-use mongodb::{ options::ClientOptions, Client, results::InsertOneResult };
-use serde::{ Deserialize, Serialize };
-use std::sync::Arc;
 use async_trait::async_trait;
+use mongodb::{ options::ClientOptions, Client };
+use mongodb::bson::{ doc, Document };
+use serde::{ de::DeserializeOwned, Serialize };
 
-use super::handler::DbConnection;
+use super::handler::KvStoreConnection;
 
 #[derive(Debug, Clone)]
 pub struct MongoDbIndex {
@@ -14,16 +13,17 @@ pub struct MongoDbIndex {
 
 #[derive(Debug, Clone)]
 pub struct MongoDbConn {
-    pub client: Arc<Mutex<Client>>,
+    pub client: Client,
+    pub index: MongoDbIndex,
 }
 
 #[async_trait]
-impl DbConnection for MongoDbConn {
+impl KvStoreConnection for MongoDbConn {
     type ConnectionResult = MongoDbConn;
-    type InsertCollResult = ();
-    type InsertDocResult = ();
+    type SetDataResult = Result<(), mongodb::error::Error>;
+    type GetDataResult<T> = Result<Option<T>, mongodb::error::Error>;
 
-    async fn init(&mut self, url: &str) -> Self::ConnectionResult {
+    async fn init(url: &str) -> Self::ConnectionResult {
         let client_options = match ClientOptions::parse(url).await {
             Ok(client_options) => client_options,
             Err(e) => panic!("Failed to connect to MongoDB instance with error: {}", e),
@@ -34,38 +34,46 @@ impl DbConnection for MongoDbConn {
             Err(e) => panic!("Failed to connect to MongoDB instance with error: {}", e),
         };
 
-        MongoDbConn {
-            client: Arc::new(Mutex::new(client)),
-        }
-    }
-
-    async fn insert_collection(
-        &mut self,
-        db_name: &str,
-        coll_name: &str
-    ) -> Self::InsertCollResult {
-        let client = self.client.lock().await;
-        let db = client.database(db_name);
-        match db.create_collection(coll_name, None).await {
-            Ok(_) => (),
-            Err(e) => panic!("Failed to create MongoDB collection with error: {}", e),
-        }
-    }
-
-    async fn insert_document<'a, T: Serialize + Deserialize<'a> + std::marker::Send>(
-        &mut self,
-        db_name: &str,
-        coll_name: &str,
-        doc: T
-    ) -> Self::InsertDocResult {
-        let client = self.client.lock().await;
-        let coll = client.database(db_name).collection(coll_name);
-
-        let insertion = match coll.insert_one(doc, None).await {
-            Ok(_) => (),
-            Err(e) => panic!("Failed to insert document into MongoDB collection with error: {}", e),
+        let index = MongoDbIndex {
+            db_name: String::from("default"),
+            coll_name: String::from("default"),
         };
 
-        insertion
+        MongoDbConn { client, index }
+    }
+
+    async fn set_data<T: Serialize + std::marker::Send>(
+        &mut self,
+        key: &str,
+        value: T
+    ) -> Self::SetDataResult {
+        let collection = self.client
+            .database(&self.index.db_name)
+            .collection::<Document>(&self.index.coll_name);
+
+        let document = mongodb::bson::to_document(&value)?;
+
+        let filter = doc! { "_id": key };
+        collection.replace_one(
+            filter,
+            document.clone(),
+            mongodb::options::ReplaceOptions::builder().upsert(true).build()
+        ).await?;
+
+        Ok(())
+    }
+
+    async fn get_data<T: DeserializeOwned>(&mut self, key: &str) -> Self::GetDataResult<T> {
+        let collection = self.client.database(&self.index.db_name).collection::<Document>(&self.index.coll_name); // Change to your actual collection name
+
+        let filter = doc! { "_id": key };
+        let result = collection.find_one(filter, None).await?;
+
+        if let Some(document) = result {
+            let deserialized: T = mongodb::bson::from_document(document)?;
+            Ok(Some(deserialized))
+        } else {
+            Ok(None)
+        }
     }
 }
