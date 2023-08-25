@@ -2,16 +2,14 @@
 pub mod constants;
 pub mod crypto;
 pub mod db;
-pub mod handlers;
 pub mod interfaces;
-pub mod market;
-pub mod routes;
+pub mod api;
 pub mod utils;
 
 use crate::db::handler::KvStoreConnection;
 use crate::db::mongo_db::MongoDbConn;
 use crate::db::redis_cache::RedisCacheConn;
-use crate::routes::*;
+use crate::api::routes::*;
 use crate::utils::load_config;
 use futures::lock::Mutex;
 use std::sync::Arc;
@@ -28,5 +26,5 @@ async fn main() {
     let routes = get_data(db_conn, cache_conn.clone(), cuckoo_filter);
     println!("Server running at localhost:3030");
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([127, 0, 0, 1], config.extern_port)).await;
 }

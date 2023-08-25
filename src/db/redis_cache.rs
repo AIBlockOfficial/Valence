@@ -34,9 +34,9 @@ impl KvStoreConnection for RedisCacheConn {
 
         if let Some(data) = result {
             let deserialized: T = deserialize_data(data);
-            Ok(Some(deserialized))
-        } else {
-            Ok(None)
-        }
+            return Ok(Some(deserialized));
+        } 
+        
+        Ok(None)
     }
 }

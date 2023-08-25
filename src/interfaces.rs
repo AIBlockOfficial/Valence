@@ -16,7 +16,7 @@ pub struct AddOrderRequestData {}
 
 pub struct EnvConfig {
     pub debug: bool,
-    pub extern_port: String,
+    pub extern_port: u16,
     pub db_url: String,
     pub db_port: String,
     pub db_password: String,

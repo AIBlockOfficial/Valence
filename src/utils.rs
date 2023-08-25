@@ -18,8 +18,8 @@ pub fn load_config() -> EnvConfig {
         Ok(config) => EnvConfig {
             debug: config.get_bool("debug").unwrap_or(SETTINGS_DEBUG),
             extern_port: config
-                .get_string("extern_port")
-                .unwrap_or(SETTINGS_EXTERN_PORT.to_string()),
+                .get_int("extern_port")
+                .unwrap_or(SETTINGS_EXTERN_PORT as i64) as u16,
             db_url: config
                 .get_string("db_url")
                 .unwrap_or(SETTINGS_DB_URL.to_string()),
@@ -40,7 +40,7 @@ pub fn load_config() -> EnvConfig {
                 .unwrap_or(SETTINGS_CACHE_PASSWORD.to_string()),
         },
         Err(e) => {
-            panic!("Failed to load config file with error: {}", e)
+            panic!("Failed to load config file with error: {e}")
         }
     }
 }

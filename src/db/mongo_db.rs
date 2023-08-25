@@ -26,12 +26,12 @@ impl KvStoreConnection for MongoDbConn {
     async fn init(url: &str) -> Self::ConnectionResult {
         let client_options = match ClientOptions::parse(url).await {
             Ok(client_options) => client_options,
-            Err(e) => panic!("Failed to connect to MongoDB instance with error: {}", e),
+            Err(e) => panic!("Failed to connect to MongoDB instance with error: {e}"),
         };
 
         let client = match Client::with_options(client_options) {
             Ok(client) => client,
-            Err(e) => panic!("Failed to connect to MongoDB instance with error: {}", e),
+            Err(e) => panic!("Failed to connect to MongoDB instance with error: {e}"),
         };
 
         let index = MongoDbIndex {
