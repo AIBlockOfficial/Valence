@@ -21,7 +21,6 @@ pub fn get_data(
     cache: CacheConnection,
     cuckoo_filter: CFilterConnection
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    println!("Getting data...");
     warp::path("get_data")
         .and(sig_verify_middleware())
         .and(warp::body::json())
