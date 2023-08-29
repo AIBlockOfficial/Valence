@@ -24,19 +24,3 @@ pub struct EnvConfig {
     pub cache_port: String,
     pub cache_password: String,
 }
-
-// Custom error type for invalid signature
-#[derive(Debug)]
-pub struct InvalidSignature;
-
-#[derive(Debug)]
-pub struct DBInsertionFailed;
-
-#[derive(Debug)]
-pub struct CacheInsertionFailed;
-
-#[derive(Debug)]
-pub struct CuckooFilterInsertionFailed;
-
-#[derive(Debug)]
-pub struct CuckooFilterLookupFailed;

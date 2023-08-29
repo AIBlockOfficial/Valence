@@ -1,6 +1,6 @@
 /// ==== CONFIG ==== ///
 
-pub const CONFIG_FILE: &str = ".env";
+pub const CONFIG_FILE: &str = "config.toml";
 pub const SETTINGS_DEBUG: bool = false;
 pub const SETTINGS_EXTERN_PORT: u16 = 8080;
 pub const SETTINGS_DB_URL: &str = "mongodb://127.0.0.1";

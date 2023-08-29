@@ -47,8 +47,11 @@ pub fn load_config() -> EnvConfig {
 
 /// Function to validate the signature using Ed25519
 pub fn validate_signature(public_key: &str, msg: &str, signature: &str) -> bool {
-    let pk = PublicKey::from_slice(public_key.as_bytes()).unwrap();
-    let signature = Signature::from_slice(signature.as_bytes()).unwrap();
+    let pk_decode = hex::decode(public_key).expect("Decoding failed");
+    let sig_decode = hex::decode(signature).expect("Decoding failed");
+
+    let pk = PublicKey::from_slice(&pk_decode).unwrap();
+    let signature = Signature::from_slice(&sig_decode).unwrap();
 
     sign::verify_detached(&signature, msg.as_bytes(), &pk)
 }

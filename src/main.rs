@@ -21,10 +21,13 @@ async fn main() {
     let db_addr = format!("{}:{}", config.db_url, config.db_port);
     let cuckoo_filter = Arc::new(Mutex::new(cuckoofilter::CuckooFilter::new()));
 
+    println!("Connecting to cache at {}", cache_addr);
+    println!("Connecting to DB at {}", db_addr);
+
     let cache_conn = Arc::new(Mutex::new(RedisCacheConn::init(&cache_addr).await));
     let db_conn = Arc::new(Mutex::new(MongoDbConn::init(&db_addr).await));
     let routes = get_data(db_conn, cache_conn.clone(), cuckoo_filter);
-    println!("Server running at localhost:3030");
+    println!("Server running at localhost:{}", config.extern_port);
 
     warp::serve(routes).run(([127, 0, 0, 1], config.extern_port)).await;
 }

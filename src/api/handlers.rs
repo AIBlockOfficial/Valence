@@ -1,24 +1,9 @@
 use crate::api::interfaces::{ CacheConnection, CFilterConnection, DbConnection };
-use crate::interfaces::{
-    CacheInsertionFailed,
-    CuckooFilterInsertionFailed,
-    CuckooFilterLookupFailed,
-    DBInsertionFailed,
-    GetRequestData,
-    InvalidSignature,
-    SetRequestData,
-};
+use crate::api::responses::{ JsonReply, CallResponse, json_serialize_embed };
+use crate::api::errors::ApiErrorType;
 use crate::utils::{ deserialize_data, serialize_data };
 use crate::db::handler::KvStoreConnection;
-use warp::Rejection;
-
-/// ========= ERROR REJECT IMPL ========= ///
-
-impl warp::reject::Reject for InvalidSignature {}
-impl warp::reject::Reject for DBInsertionFailed {}
-impl warp::reject::Reject for CacheInsertionFailed {}
-impl warp::reject::Reject for CuckooFilterInsertionFailed {}
-impl warp::reject::Reject for CuckooFilterLookupFailed {}
+use crate::interfaces::{GetRequestData, SetRequestData};
 
 /// ========= BASE HANDLERS ========= ///
 
@@ -28,10 +13,12 @@ pub async fn get_data_handler(
     cache: CacheConnection,
     payload: GetRequestData,
     c_filter: CFilterConnection
-) -> Result<impl warp::Reply, Rejection> {
+) -> Result<JsonReply, JsonReply> {
+    let r = CallResponse::new("get_data");
+
     // Check if address is in cuckoo filter
     if !c_filter.lock().await.contains(&payload.address) {
-        return Err(warp::reject::custom(CuckooFilterLookupFailed));
+        return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
     // Check cache first
@@ -41,7 +28,7 @@ pub async fn get_data_handler(
         Ok(value) => {
             // Return data from cache
             let final_data = deserialize_data::<String>(value.unwrap());
-            Ok(warp::reply::json(&final_data))
+            r.into_ok("Data retrieved successfully", json_serialize_embed(final_data))
         }
         Err(_) => {
             // Get data from DB
@@ -51,22 +38,24 @@ pub async fn get_data_handler(
                 Ok(value) => {
                     // Return data from DB
                     let final_data = deserialize_data::<String>(value.unwrap());
-                    Ok(warp::reply::json(&final_data))
+                    r.into_ok("Data retrieved successfully", json_serialize_embed(final_data))
                 }
-                Err(_) => { Err(warp::reject::custom(DBInsertionFailed)) }
+                Err(_) => { r.into_err_internal(ApiErrorType::DBInsertionFailed) }
             }
         }
     }
 }
 
-/// Route to set data (validate the signature)
+/// Route to set data
 pub async fn set_data_handler(
     payload: SetRequestData,
     db: DbConnection,
     db_key: String,
     cache: CacheConnection,
     c_filter: CFilterConnection
-) -> Result<impl warp::Reply, Rejection> {
+) -> Result<JsonReply, JsonReply> {
+    let r = CallResponse::new("set_data");
+
     // Add to cache
     let cache_result = cache
         .lock().await
@@ -76,7 +65,7 @@ pub async fn set_data_handler(
     let db_result = match cache_result {
         Ok(_) => { db.lock().await.set_data(&db_key, payload.data).await }
         Err(_) => {
-            return Err(warp::reject::custom(CacheInsertionFailed));
+            return r.into_err_internal(ApiErrorType::CacheInsertionFailed);
         }
     };
 
@@ -84,12 +73,12 @@ pub async fn set_data_handler(
     let c_filter_result = match db_result {
         Ok(_) => c_filter.lock().await.add(&payload.address),
         Err(_) => {
-            return Err(warp::reject::custom(DBInsertionFailed));
+            return r.into_err_internal(ApiErrorType::DBInsertionFailed);
         }
     };
 
     match c_filter_result {
-        Ok(_) => Ok(warp::reply::json(&String::from("Data added successfully"))),
-        Err(_) => Err(warp::reject::custom(CuckooFilterInsertionFailed)),
+        Ok(_) => r.into_ok("Data retrieved succcessfully", json_serialize_embed(payload.address)),
+        Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
     }
 }

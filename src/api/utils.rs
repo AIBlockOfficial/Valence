@@ -1,7 +1,10 @@
-use warp::{Filter, Reply, Rejection};
+use warp::{Filter, Reply, Rejection, Future};
 use std::convert::Infallible;
 use crate::utils::validate_signature;
-use crate::interfaces::InvalidSignature;
+use crate::api::errors::ApiErrorType;
+use crate::api::responses::JsonReply;
+
+impl warp::reject::Reject for ApiErrorType {}
 
 /// Clone component/struct to use in route
 /// 
@@ -42,10 +45,7 @@ pub fn sig_verify_middleware() -> impl Filter<Extract = ((),), Error = Rejection
         .and(warp::header::headers_cloned())
         .and_then(move |_: warp::path::FullPath, headers: warp::hyper::HeaderMap| {
             async move {
-                let public_key = headers
-                    .get("public_key")
-                    .and_then(|n| n.to_str().ok())
-                    .unwrap_or_default();
+                let public_key = headers.get("public_key").and_then(|n| n.to_str().ok()).unwrap_or_default();
 
                 let address = headers
                     .get("address")
@@ -59,18 +59,18 @@ pub fn sig_verify_middleware() -> impl Filter<Extract = ((),), Error = Rejection
 
                 if validate_signature(public_key, address, signature) {
                     // Proceed to the next filter/handler
+                    println!("Signature verified");
                     return Ok(());
                 }
 
-                // Reject the request with custom rejection
-                Err(warp::reject::custom(InvalidSignature))
+                Err(warp::reject::custom(ApiErrorType::InvalidSignature))
             }
         })
 }
 
 /// Rejection handler
 pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    if let Some(InvalidSignature) = err.find() {
+    if let Some(ApiErrorType::InvalidSignature) = err.find() {
         // Handle invalid signature error here
         Ok(warp::reply::with_status("Invalid signature", warp::http::StatusCode::BAD_REQUEST))
     } else {
@@ -82,4 +82,11 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
             )
         )
     }
+}
+
+pub fn map_api_res(
+    r: impl Future<Output = Result<JsonReply, JsonReply>>,
+) -> impl Future<Output = Result<impl warp::Reply, warp::Rejection>> {
+    use futures::future::TryFutureExt;
+    r.map_ok_or_else(Ok, Ok)
 }
