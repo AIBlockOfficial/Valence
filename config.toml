@@ -1,9 +1,10 @@
 # This is a sample .ENV file for Beacon
 debug = false
 extern_port = 3030
-cache_url = "redis://localhost"
+cache_url = "redis://cache"
 cache_port = "6379"
 cache_password = ""
-db_url = "mongodb://localhost"
+db_url = "mongodb://db"
 db_port = "27017"
 db_password = ""
+body_limit = 4096

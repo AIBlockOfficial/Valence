@@ -10,7 +10,7 @@ use crate::db::handler::KvStoreConnection;
 use crate::db::mongo_db::MongoDbConn;
 use crate::db::redis_cache::RedisCacheConn;
 use crate::api::routes::*;
-use crate::utils::{load_config, print_welcome};
+use crate::utils::{ load_config, print_welcome };
 use futures::lock::Mutex;
 use std::sync::Arc;
 
@@ -25,8 +25,8 @@ async fn main() {
 
     let cache_conn = Arc::new(Mutex::new(RedisCacheConn::init(&cache_addr).await));
     let db_conn = Arc::new(Mutex::new(MongoDbConn::init(&db_addr).await));
-    let routes = get_data(db_conn, cache_conn.clone(), cuckoo_filter);
+    let routes = get_data(db_conn, cache_conn.clone(), cuckoo_filter, config.body_limit);
     println!("Server running at localhost:{}", config.extern_port);
 
-    warp::serve(routes).run(([127, 0, 0, 1], config.extern_port)).await;
+    warp::serve(routes).run(([0,0,0,0], config.extern_port)).await;
 }

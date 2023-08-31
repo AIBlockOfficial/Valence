@@ -84,6 +84,7 @@ pub async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> 
     }
 }
 
+/// Map API result to warp reply
 pub fn map_api_res(
     r: impl Future<Output = Result<JsonReply, JsonReply>>,
 ) -> impl Future<Output = Result<impl warp::Reply, warp::Rejection>> {
