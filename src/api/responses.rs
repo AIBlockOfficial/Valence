@@ -84,12 +84,7 @@ impl<'a> CallResponse<'a> {
         api_error_type: ApiErrorType,
         data: JsonReply,
     ) -> Result<JsonReply, JsonReply> {
-        Err(common_error_reply(
-            status,
-            api_error_type,
-            self.route,
-            data,
-        ))
+        Err(common_error_reply(status, api_error_type, self.route, data))
     }
 
     pub fn into_err(
@@ -161,13 +156,8 @@ pub fn common_reply(
 /// * `id` - The ID of the API call. Provided by client
 /// * `route` - The route of the API call, as client confirmation
 /// * `json_content` - Content of the API call, as JSON
-pub fn common_success_reply(
-    route: &str,
-    reason: &str,
-    json_content: JsonReply,
-) -> JsonReply {
-    common_reply(APIResponseStatus::Success, reason, route, json_content)
-        .with_code(StatusCode::OK)
+pub fn common_success_reply(route: &str, reason: &str, json_content: JsonReply) -> JsonReply {
+    common_reply(APIResponseStatus::Success, reason, route, json_content).with_code(StatusCode::OK)
 }
 
 /// Handles common error replies

@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use crate::db::mongo_db::MongoDbConn;
+use crate::db::redis_cache::RedisCacheConn;
 use futures::lock::Mutex;
 use std::collections::hash_map::DefaultHasher;
-use crate::db::redis_cache::RedisCacheConn;
-use crate::db::mongo_db::MongoDbConn;
+use std::sync::Arc;
 
 /// ========= TYPE ABSTRACTIONS ========= ///
 

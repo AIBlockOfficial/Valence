@@ -1,9 +1,9 @@
-use crate::api::interfaces::{ CacheConnection, CFilterConnection, DbConnection };
-use crate::api::responses::{ JsonReply, CallResponse, json_serialize_embed };
 use crate::api::errors::ApiErrorType;
-use crate::utils::{ deserialize_data, serialize_data };
+use crate::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
+use crate::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use crate::db::handler::KvStoreConnection;
 use crate::interfaces::{GetRequestData, SetRequestData};
+use crate::utils::{deserialize_data, serialize_data};
 
 /// ========= BASE HANDLERS ========= ///
 
@@ -12,7 +12,7 @@ pub async fn get_data_handler(
     db: DbConnection,
     cache: CacheConnection,
     payload: GetRequestData,
-    c_filter: CFilterConnection
+    c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("get_data");
 
@@ -28,7 +28,10 @@ pub async fn get_data_handler(
         Ok(value) => {
             // Return data from cache
             let final_data = deserialize_data::<String>(value.unwrap());
-            r.into_ok("Data retrieved successfully", json_serialize_embed(final_data))
+            r.into_ok(
+                "Data retrieved successfully",
+                json_serialize_embed(final_data),
+            )
         }
         Err(_) => {
             // Get data from DB
@@ -38,9 +41,12 @@ pub async fn get_data_handler(
                 Ok(value) => {
                     // Return data from DB
                     let final_data = deserialize_data::<String>(value.unwrap());
-                    r.into_ok("Data retrieved successfully", json_serialize_embed(final_data))
+                    r.into_ok(
+                        "Data retrieved successfully",
+                        json_serialize_embed(final_data),
+                    )
                 }
-                Err(_) => { r.into_err_internal(ApiErrorType::DBInsertionFailed) }
+                Err(_) => r.into_err_internal(ApiErrorType::DBInsertionFailed),
             }
         }
     }
@@ -52,18 +58,20 @@ pub async fn set_data_handler(
     db: DbConnection,
     db_key: String,
     cache: CacheConnection,
-    c_filter: CFilterConnection
+    c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("set_data");
 
     // Add to cache
     let cache_result = cache
-        .lock().await
-        .set_data(&payload.address.clone(), serialize_data(&payload.data)).await;
+        .lock()
+        .await
+        .set_data(&payload.address.clone(), serialize_data(&payload.data))
+        .await;
 
     // Add to DB
     let db_result = match cache_result {
-        Ok(_) => { db.lock().await.set_data(&db_key, payload.data).await }
+        Ok(_) => db.lock().await.set_data(&db_key, payload.data).await,
         Err(_) => {
             return r.into_err_internal(ApiErrorType::CacheInsertionFailed);
         }
@@ -78,7 +86,10 @@ pub async fn set_data_handler(
     };
 
     match c_filter_result {
-        Ok(_) => r.into_ok("Data retrieved succcessfully", json_serialize_embed(payload.address)),
+        Ok(_) => r.into_ok(
+            "Data retrieved succcessfully",
+            json_serialize_embed(payload.address),
+        ),
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
     }
 }

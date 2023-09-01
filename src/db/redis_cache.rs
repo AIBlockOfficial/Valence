@@ -1,7 +1,7 @@
-use crate::{ db::handler::KvStoreConnection, utils::serialize_data, utils::deserialize_data };
+use crate::{db::handler::KvStoreConnection, utils::deserialize_data, utils::serialize_data};
 use async_trait::async_trait;
-use serde::{ de::DeserializeOwned, Serialize };
-use redis::{ aio::ConnectionManager, AsyncCommands, RedisError };
+use redis::{aio::ConnectionManager, AsyncCommands, RedisError};
+use serde::{de::DeserializeOwned, Serialize};
 
 #[derive(Clone)]
 pub struct RedisCacheConn {
@@ -35,8 +35,8 @@ impl KvStoreConnection for RedisCacheConn {
         if let Some(data) = result {
             let deserialized: T = deserialize_data(data);
             return Ok(Some(deserialized));
-        } 
-        
+        }
+
         Ok(None)
     }
 }

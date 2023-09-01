@@ -23,5 +23,5 @@ pub struct EnvConfig {
     pub cache_url: String,
     pub cache_port: String,
     pub cache_password: String,
-    pub body_limit: u64
+    pub body_limit: u64,
 }

@@ -14,7 +14,7 @@ pub enum ApiErrorType {
     DBInsertionFailed,
     CacheInsertionFailed,
     CuckooFilterInsertionFailed,
-    CuckooFilterLookupFailed
+    CuckooFilterLookupFailed,
 }
 
 impl ApiError {
@@ -43,8 +43,13 @@ impl std::fmt::Display for ApiErrorType {
             ApiErrorType::InvalidSignature => write!(f, "Invalid signature"),
             ApiErrorType::DBInsertionFailed => write!(f, "DB insertion failed"),
             ApiErrorType::CacheInsertionFailed => write!(f, "Cache insertion failed"),
-            ApiErrorType::CuckooFilterInsertionFailed => write!(f, "Cuckoo filter insertion failed"),
-            ApiErrorType::CuckooFilterLookupFailed => write!(f, "Cuckoo filter lookup failed")
+            ApiErrorType::CuckooFilterInsertionFailed => {
+                write!(f, "Cuckoo filter insertion failed")
+            }
+            ApiErrorType::CuckooFilterLookupFailed => write!(
+                f,
+                "Cuckoo filter lookup failed, data for address not found on this Beacon"
+            ),
         }
     }
 }

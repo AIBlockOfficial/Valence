@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use mongodb::{ options::ClientOptions, Client };
-use mongodb::bson::{ doc, Document };
-use serde::{ de::DeserializeOwned, Serialize };
+use mongodb::bson::{doc, Document};
+use mongodb::{options::ClientOptions, Client};
+use serde::{de::DeserializeOwned, Serialize};
 
 use super::handler::KvStoreConnection;
 
@@ -45,26 +45,34 @@ impl KvStoreConnection for MongoDbConn {
     async fn set_data<T: Serialize + std::marker::Send>(
         &mut self,
         key: &str,
-        value: T
+        value: T,
     ) -> Self::SetDataResult {
-        let collection = self.client
+        let collection = self
+            .client
             .database(&self.index.db_name)
             .collection::<Document>(&self.index.coll_name);
 
         let document = mongodb::bson::to_document(&value)?;
 
         let filter = doc! { "_id": key };
-        collection.replace_one(
-            filter,
-            document.clone(),
-            mongodb::options::ReplaceOptions::builder().upsert(true).build()
-        ).await?;
+        collection
+            .replace_one(
+                filter,
+                document.clone(),
+                mongodb::options::ReplaceOptions::builder()
+                    .upsert(true)
+                    .build(),
+            )
+            .await?;
 
         Ok(())
     }
 
     async fn get_data<T: DeserializeOwned>(&mut self, key: &str) -> Self::GetDataResult<T> {
-        let collection = self.client.database(&self.index.db_name).collection::<Document>(&self.index.coll_name); // Change to your actual collection name
+        let collection = self
+            .client
+            .database(&self.index.db_name)
+            .collection::<Document>(&self.index.coll_name); // Change to your actual collection name
 
         let filter = doc! { "_id": key };
         let result = collection.find_one(filter, None).await?;

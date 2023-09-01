@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use serde::{ de::DeserializeOwned, Serialize };
+use serde::{de::DeserializeOwned, Serialize};
 
 /// Trait for a key-value data store connection
 #[async_trait]
@@ -21,11 +21,7 @@ pub trait KvStoreConnection {
     ///
     /// * `key` - Key of the data entry to set
     /// * `value` - Value of the data entry to set
-    async fn set_data<T: Serialize + Send>(
-        &mut self,
-        key: &str,
-        value: T
-    ) -> Self::SetDataResult;
+    async fn set_data<T: Serialize + Send>(&mut self, key: &str, value: T) -> Self::SetDataResult;
 
     /// Gets a data entry from the cache
     ///
