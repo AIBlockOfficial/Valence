@@ -3,12 +3,9 @@ use crate::constants::{
     SETTINGS_CACHE_PORT, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT,
     SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
-use crate::crypto::sign_ed25519 as sign;
-use crate::crypto::sign_ed25519::{PublicKey, Signature};
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 
 /// Loads the config file
 pub fn load_config() -> EnvConfig {
@@ -46,33 +43,6 @@ pub fn load_config() -> EnvConfig {
             panic!("Failed to load config file with error: {e}")
         }
     }
-}
-
-/// Function to validate the signature using Ed25519
-///
-/// ### Argeumnts
-///
-/// * `public_key` - The public key of the signer
-/// * `msg` - The message that was signed
-/// * `signature` - The signature of the message
-pub fn validate_signature(public_key: &str, msg: &str, signature: &str) -> bool {
-    let pk_decode = hex::decode(public_key).expect("Decoding failed");
-    let sig_decode = hex::decode(signature).expect("Decoding failed");
-
-    let pk = PublicKey::from_slice(&pk_decode).unwrap();
-    let signature = Signature::from_slice(&sig_decode).unwrap();
-
-    sign::verify_detached(&signature, msg.as_bytes(), &pk)
-}
-
-/// Function to serialize data
-pub fn serialize_data<T: Serialize>(data: &T) -> String {
-    serde_json::to_string(data).unwrap()
-}
-
-/// Function to deserialize data
-pub fn deserialize_data<T: for<'a> Deserialize<'a>>(data: String) -> T {
-    serde_json::from_str(&data).unwrap()
 }
 
 /// Constructs a 16 byte DRUID string

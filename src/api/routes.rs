@@ -1,9 +1,8 @@
 use crate::api::handlers::{get_data_handler, set_data_handler};
 use crate::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
-use crate::api::utils::{
+use beacon_core::api::utils::{
     handle_rejection, map_api_res, post_cors, sig_verify_middleware, with_node_component,
 };
-use crate::constants::DB_KEY;
 use warp::{Filter, Rejection, Reply};
 
 /// ========== BASE ROUTES ========== ///
@@ -40,7 +39,7 @@ pub fn set_data(
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
         .and_then(move |_, info, cache, db, cf| {
-            map_api_res(set_data_handler(info, db, DB_KEY.to_string(), cache, cf))
+            map_api_res(set_data_handler(info, db, cache, cf))
         })
         .recover(handle_rejection)
         .with(post_cors())

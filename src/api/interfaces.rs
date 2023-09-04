@@ -1,5 +1,5 @@
-use crate::db::mongo_db::MongoDbConn;
-use crate::db::redis_cache::RedisCacheConn;
+use beacon_core::db::mongo_db::MongoDbConn;
+use beacon_core::db::redis_cache::RedisCacheConn;
 use futures::lock::Mutex;
 use std::collections::hash_map::DefaultHasher;
 use std::sync::Arc;

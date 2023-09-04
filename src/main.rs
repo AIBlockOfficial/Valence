@@ -1,19 +1,17 @@
 // main.rs
 pub mod api;
 pub mod constants;
-pub mod crypto;
-pub mod db;
 pub mod interfaces;
 pub mod utils;
 
 use crate::api::routes::*;
-use crate::db::handler::KvStoreConnection;
-use crate::db::mongo_db::MongoDbConn;
-use crate::db::redis_cache::RedisCacheConn;
 use crate::utils::{load_config, print_welcome};
 use futures::lock::Mutex;
 use std::sync::Arc;
 use warp::Filter;
+use beacon_core::db::handler::KvStoreConnection;
+use beacon_core::db::mongo_db::MongoDbConn;
+use beacon_core::db::redis_cache::RedisCacheConn;
 
 #[tokio::main]
 async fn main() {
