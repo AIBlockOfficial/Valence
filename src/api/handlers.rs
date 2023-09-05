@@ -1,17 +1,24 @@
-use beacon_core::api::errors::ApiErrorType;
 use crate::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
+use crate::interfaces::{GetRequestData, SetRequestData};
+use beacon_core::api::errors::ApiErrorType;
 use beacon_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use beacon_core::db::handler::KvStoreConnection;
-use crate::interfaces::{GetRequestData, SetRequestData};
 use beacon_core::utils::{deserialize_data, serialize_data};
 
 /// ========= BASE HANDLERS ========= ///
 
 /// Route to get data from DB
+///
+/// ### Arguments
+///
+/// * `payload` - Request payload
+/// * `db` - Database connection
+/// * `cache` - Cache connection
+/// * `c_filter` - Cuckoo filter connection
 pub async fn get_data_handler(
+    payload: GetRequestData,
     db: DbConnection,
     cache: CacheConnection,
-    payload: GetRequestData,
     c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("get_data");
@@ -53,6 +60,13 @@ pub async fn get_data_handler(
 }
 
 /// Route to set data
+///
+/// ### Arguments
+///
+/// * `payload` - Request payload
+/// * `db` - Database connection
+/// * `cache` - Cache connection
+/// * `c_filter` - Cuckoo filter connection
 pub async fn set_data_handler(
     payload: SetRequestData,
     db: DbConnection,
@@ -70,7 +84,12 @@ pub async fn set_data_handler(
 
     // Add to DB
     let db_result = match cache_result {
-        Ok(_) => db.lock().await.set_data(&payload.address, payload.data).await,
+        Ok(_) => {
+            db.lock()
+                .await
+                .set_data(&payload.address, payload.data)
+                .await
+        }
         Err(_) => {
             return r.into_err_internal(ApiErrorType::CacheInsertionFailed);
         }

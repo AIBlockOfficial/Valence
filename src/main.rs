@@ -6,12 +6,12 @@ pub mod utils;
 
 use crate::api::routes::*;
 use crate::utils::{load_config, print_welcome};
-use futures::lock::Mutex;
-use std::sync::Arc;
-use warp::Filter;
 use beacon_core::db::handler::KvStoreConnection;
 use beacon_core::db::mongo_db::MongoDbConn;
 use beacon_core::db::redis_cache::RedisCacheConn;
+use futures::lock::Mutex;
+use std::sync::Arc;
+use warp::Filter;
 
 #[tokio::main]
 async fn main() {

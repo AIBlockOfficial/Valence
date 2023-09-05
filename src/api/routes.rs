@@ -20,7 +20,7 @@ pub fn get_data(
         .and(with_node_component(cache))
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
-        .and_then(move |_, data, cache, db, cf| map_api_res(get_data_handler(db, cache, data, cf)))
+        .and_then(move |_, info, cache, db, cf| map_api_res(get_data_handler(info, db, cache, cf)))
         .recover(handle_rejection)
         .with(post_cors())
 }
@@ -38,9 +38,7 @@ pub fn set_data(
         .and(with_node_component(cache))
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
-        .and_then(move |_, info, cache, db, cf| {
-            map_api_res(set_data_handler(info, db, cache, cf))
-        })
+        .and_then(move |_, info, cache, db, cf| map_api_res(set_data_handler(info, db, cache, cf)))
         .recover(handle_rejection)
         .with(post_cors())
 }
