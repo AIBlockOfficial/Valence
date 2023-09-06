@@ -5,7 +5,8 @@ pub mod interfaces;
 pub mod utils;
 
 use crate::api::routes::*;
-use crate::utils::{load_config, print_welcome};
+use crate::utils::{ load_config, print_welcome };
+use weaver_core::api::utils::handle_rejection;
 use weaver_core::db::handler::KvStoreConnection;
 use weaver_core::db::mongo_db::MongoDbConn;
 use weaver_core::db::redis_cache::RedisCacheConn;
@@ -22,24 +23,15 @@ async fn main() {
 
     let cache_conn = Arc::new(Mutex::new(RedisCacheConn::init(&cache_addr).await));
     let db_conn = Arc::new(Mutex::new(MongoDbConn::init(&db_addr).await));
-    let routes = get_data(
-        db_conn.clone(),
-        cache_conn.clone(),
-        cuckoo_filter.clone(),
-        config.body_limit,
-    )
-    .or(set_data(
-        db_conn,
-        cache_conn,
-        cuckoo_filter,
-        config.body_limit,
-    ));
+    let routes = get_data(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone(), config.body_limit)
+        .or(set_data(db_conn, cache_conn, cuckoo_filter, config.body_limit))
+        .recover(handle_rejection);
 
     print_welcome(&db_addr, &cache_addr);
 
     println!("Server running at localhost:{}", config.extern_port);
 
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], config.extern_port))
-        .await;
+    warp
+        ::serve(routes)
+        .run(([0, 0, 0, 0], config.extern_port)).await;
 }

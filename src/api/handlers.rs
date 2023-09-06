@@ -85,9 +85,16 @@ pub async fn set_data_handler(
     // Add to DB
     let db_result = match cache_result {
         Ok(_) => {
+            let data = match serde_json::from_str::<serde_json::Value>(&payload.data) {
+                Ok(data) => data,
+                Err(_) => {
+                    return r.into_err_internal(ApiErrorType::DataSerializationFailed);
+                }
+            };
+
             db.lock()
                 .await
-                .set_data(&payload.address, payload.data)
+                .set_data(&payload.address, data)
                 .await
         }
         Err(_) => {
@@ -105,7 +112,7 @@ pub async fn set_data_handler(
 
     match c_filter_result {
         Ok(_) => r.into_ok(
-            "Data retrieved succcessfully",
+            "Data set succcessfully",
             json_serialize_embed(payload.address),
         ),
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
