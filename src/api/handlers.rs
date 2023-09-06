@@ -1,9 +1,9 @@
-use crate::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
 use crate::interfaces::{GetRequestData, SetRequestData};
-use beacon_core::api::errors::ApiErrorType;
-use beacon_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
-use beacon_core::db::handler::KvStoreConnection;
-use beacon_core::utils::{deserialize_data, serialize_data};
+use weaver_core::api::errors::ApiErrorType;
+use weaver_core::db::handler::KvStoreConnection;
+use weaver_core::utils::{deserialize_data, serialize_data};
+use weaver_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
+use weaver_core::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
 
 /// ========= BASE HANDLERS ========= ///
 

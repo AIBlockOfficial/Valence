@@ -24,9 +24,9 @@ services:
     volumes:
       - db:/data/db
     container_name: mongo-db
-  beacon:
+  weaver:
     build: .
-    image: beacon
+    image: weaver
     ports:
       - 3030:3030
     expose:
@@ -37,7 +37,7 @@ services:
       - db
     volumes:
       - ${PWD}/logs:/app/logs
-    container_name: beacon
+    container_name: weaver
 volumes:
   cache:
     driver: local

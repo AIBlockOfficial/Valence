@@ -1,6 +1,6 @@
 use crate::api::handlers::{get_data_handler, set_data_handler};
-use crate::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
-use beacon_core::api::utils::{
+use weaver_core::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
+use weaver_core::api::utils::{
     handle_rejection, map_api_res, post_cors, sig_verify_middleware, with_node_component,
 };
 use warp::{Filter, Rejection, Reply};
