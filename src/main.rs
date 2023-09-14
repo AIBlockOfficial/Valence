@@ -13,6 +13,8 @@ use weaver_core::db::redis_cache::RedisCacheConn;
 use futures::lock::Mutex;
 use std::sync::Arc;
 use warp::Filter;
+use weaver_market::api::routes::*;
+use weaver_market::db::interfaces::MongoDbConnWithMarket;
 
 #[tokio::main]
 async fn main() {
@@ -23,15 +25,31 @@ async fn main() {
 
     let cache_conn = Arc::new(Mutex::new(RedisCacheConn::init(&cache_addr).await));
     let db_conn = Arc::new(Mutex::new(MongoDbConn::init(&db_addr).await));
-    let routes = get_data(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone(), config.body_limit)
-        .or(set_data(db_conn, cache_conn, cuckoo_filter, config.body_limit))
+    let market_db_conn = MongoDbConnWithMarket::new(db_conn.clone());
+
+    let routes = get_data(
+        db_conn.clone(),
+        cache_conn.clone(),
+        cuckoo_filter.clone(),
+        config.body_limit
+    )
+        .or(set_data(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone(), config.body_limit))
+        .or(listings(market_db_conn.clone(), cache_conn.clone()))
+        .or(orders_by_id(market_db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone()))
+        .or(orders_send(market_db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone(), config.body_limit))
+        .or(
+            listing_send(
+                market_db_conn.clone(),
+                cache_conn.clone(),
+                cuckoo_filter.clone(),
+                config.body_limit
+            )
+        )
         .recover(handle_rejection);
 
     print_welcome(&db_addr, &cache_addr);
 
     println!("Server running at localhost:{}", config.extern_port);
 
-    warp
-        ::serve(routes)
-        .run(([0, 0, 0, 0], config.extern_port)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], config.extern_port)).await;
 }
