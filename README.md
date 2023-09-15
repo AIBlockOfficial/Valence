@@ -7,7 +7,7 @@
     <div style="height: 50px; width: 100%"></div>
 
   <a>
-    <img src="https://github.com/ABlockOfficial/Weaver/blob/main/assets/hero.svg" alt="Logo" width="450px">
+    <img src="https://github.com/ABlockOfficial/Weaver/blob/main/assets/hero.svg" alt="Logo" width="320px">
   </a>
 
   <div style="height: 50px; width: 100%"></div>
@@ -120,7 +120,8 @@ The server functions on a very basic set of rules. Clients exchange data between
 
 ### Available Routes
 
-- `set_data`: Sets data in the Redis instance and marks it for pending retrieval in the server. To send data to Bob, we could use the following headers in the `set_data` call:
+#### `set_data`
+Sets data in the Redis instance and marks it for pending retrieval in the server. To send data to Bob, we could use the following headers in the `set_data` call:
 
 ```json
 {
@@ -140,7 +141,10 @@ The body of the `set_data` call would contain the data being exchanged:
 
 The headers that Alice sends in her call will be validated by the Weaver, after which they'll be stored at Bob's address for his later retrieval using the `get_data` call.
 
-- `get_data`: Gets pending data from the server for a given address. To retrieve data for Bob, he only has to supply his credentials in the call header:
+..
+
+##### `get_data`
+Gets pending data from the server for a given address. To retrieve data for Bob, he only has to supply his credentials in the call header:
 
 ```json
 [
