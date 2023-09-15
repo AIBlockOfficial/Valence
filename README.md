@@ -43,7 +43,13 @@
     <li>
       <a href="#how-it-works">How it Works</a>
       <ul>
-        <li><a href="#data-exchange">Data Exchange</a></li>
+        <li>
+            <a href="#available-routes">Available Routes</a>
+            <ul>
+                <li><a href="#set_data">set_data</a></li>
+                <li><a href="#get_data">get_data</a></li>
+            </ul>
+        </li>
         <li><a href="#further-work">Further Work</a></li>
         </ul>
     </li>
