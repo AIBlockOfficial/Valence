@@ -4,11 +4,13 @@
 <br />
 
 <div align="center">
+    <div style="height: 50px; width: 100%"></div>
+
   <a>
     <img src="https://github.com/ABlockOfficial/Weaver/blob/main/assets/hero.svg" alt="Logo" width="450px">
   </a>
 
-  <div style="height: 20px; width: 100%"></div>
+  <div style="height: 50px; width: 100%"></div>
 
   <h3>Weaver</h3>
 
@@ -110,44 +112,11 @@ cargo run --release
 
 ## How it Works
 
-*Nomenclature: "Alice" and "Bob" represent unique public key addresses.*
-
-### Data Exchange
 The server functions on a very basic set of rules. Clients exchange data between each other through the use of public key addresses. If Alice wants to exchange data with Bob, she will need to supply the Weaver node with Bob's address, as well as her own address, public key, and signature in the call headers. The next time Bob fetches data from the server using his public key address, he would find that Alice has exchanged data to him.
 
-<details>
-<summary> An Example </summary>
-<br/>
+<p align="left">(<a href="#top">back to top</a>)</p>
 
-```json
-{
-    "c9f97...2d872": {
-        "timestamp": 1647525607766,
-        "value": {
-            "DRUID0x5d382e4ab": {
-                "senderAsset": "Token",
-                "senderAmount": 10,
-                "senderAddress": "bd696...0e80c",
-                "receiverAsset": "Receipt",
-                "receiverAmount": 1,
-                "receiverAddress": "c9f97...2d872",
-                "fromAddr": "bd696...0e80c",
-                "status": "pending"
-            }
-        }
-    }
-}
-```
-
-In this example, data for a receipt-based payment was exchanged to Bob (```bd696...0e80c```) from Alice (```c9f97...2d872```).
-
-Bob would retrieve all data exchanged to him through proving that he owns the address ```bd696...0e80c``` by cryptographically signing for it. This address represents a **key** value on the Redis server.
-
-Retrieval of all **field** values corresponding to the **key** (Bob's address), shows that we obtain an object structure with a parent object key value representing the address (Alice) from which the data is being exchanged. This object also contains a timestamp value to indicate when the data was exchanged.
-
-When Bob responds by exchanging data back to Alice, the data that Alice has initially exchanged to Bob will be removed from the Redis server for sanitation purposes.
-
-</details>
+..
 
 ### Available Routes
 
@@ -185,10 +154,19 @@ The headers that Alice sends in her call will be validated by the Weaver, after 
 
 Again, the Weaver will validate the signature before returning the data to Bob.
 
-**For best practice, it's recommended that Alice and Bob encrypt their data using their private keys, before exchanging it to each other.** This ensures that the data exchange is E2E encrypted, and that the Weaver maintains no knowledge of the data's content.
+**For best practice, it's recommended that Alice and Bob encrypt their data using their private keys, before exchanging it with each other.** This ensures that the data exchange is E2E encrypted, and that the Weaver maintains no knowledge of the data's content.
+
+<p align="left">(<a href="#top">back to top</a>)</p>
+
+..
 
 ### Further Work
 
 - [ ] Add a rate limiting mechanism
 - [ ] Set Redis keys to expire (handle cache lifetimes)
 - [ ] Handle data storage over time
+- [ ] Add tests
+
+<p align="left">(<a href="#top">back to top</a>)</p>
+
+..
