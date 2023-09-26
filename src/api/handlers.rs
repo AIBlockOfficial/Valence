@@ -1,9 +1,11 @@
-use crate::interfaces::{GetRequestData, SetRequestData};
+use crate::interfaces::SetRequestData;
+use futures::lock::Mutex;
+use std::sync::Arc;
 use weaver_core::api::errors::ApiErrorType;
+use weaver_core::api::interfaces::CFilterConnection;
+use weaver_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use weaver_core::db::handler::KvStoreConnection;
 use weaver_core::utils::{deserialize_data, serialize_data};
-use weaver_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
-use weaver_core::api::interfaces::{CFilterConnection, CacheConnection, DbConnection};
 
 /// ========= BASE HANDLERS ========= ///
 
@@ -15,21 +17,28 @@ use weaver_core::api::interfaces::{CFilterConnection, CacheConnection, DbConnect
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
-pub async fn get_data_handler(
-    payload: GetRequestData,
-    db: DbConnection,
-    cache: CacheConnection,
+pub async fn get_data_handler<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    headers: warp::hyper::HeaderMap,
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
     c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("get_data");
+    let address = headers
+        .get("address")
+        .and_then(|n| n.to_str().ok())
+        .unwrap_or_default();
 
     // Check if address is in cuckoo filter
-    if !c_filter.lock().await.contains(&payload.address) {
+    if !c_filter.lock().await.contains(&address) {
         return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
     // Check cache first
-    let cache_result = cache.lock().await.get_data(&payload.address).await;
+    let cache_result = cache.lock().await.get_data(&address).await;
 
     match cache_result {
         Ok(value) => {
@@ -42,7 +51,7 @@ pub async fn get_data_handler(
         }
         Err(_) => {
             // Get data from DB
-            let db_result = db.lock().await.get_data(&payload.address).await;
+            let db_result = db.lock().await.get_data(&address).await;
 
             match db_result {
                 Ok(value) => {
@@ -67,10 +76,13 @@ pub async fn get_data_handler(
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
-pub async fn set_data_handler(
+pub async fn set_data_handler<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
     payload: SetRequestData,
-    db: DbConnection,
-    cache: CacheConnection,
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
     c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("set_data");
@@ -92,10 +104,7 @@ pub async fn set_data_handler(
                 }
             };
 
-            db.lock()
-                .await
-                .set_data(&payload.address, data)
-                .await
+            db.lock().await.set_data(&payload.address, data).await
         }
         Err(_) => {
             return r.into_err_internal(ApiErrorType::CacheInsertionFailed);

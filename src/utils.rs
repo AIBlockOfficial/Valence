@@ -5,7 +5,44 @@ use crate::constants::{
 };
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
+use futures::lock::Mutex;
 use rand::Rng;
+use std::sync::Arc;
+use weaver_core::db::handler::KvStoreConnection;
+use weaver_core::db::mongo_db::MongoDbConn;
+use weaver_core::db::redis_cache::RedisCacheConn;
+
+// ========== DB UTILS ========== //
+
+/// Constructs a MongoDB connection
+///
+/// ### Arguments
+///
+/// * `url` - The URL to connect to
+pub async fn construct_mongodb_conn(url: &str) -> Arc<Mutex<MongoDbConn>> {
+    let mongo_conn = match MongoDbConn::init(url).await {
+        Ok(conn) => conn,
+        Err(e) => panic!("Failed to connect to MongoDB with error: {}", e),
+    };
+
+    Arc::new(Mutex::new(mongo_conn))
+}
+
+/// Constructs a Redis cache connection
+///
+/// ### Arguments
+///
+/// * `url` - The URL to connect to
+pub async fn construct_redis_conn(url: &str) -> Arc<Mutex<RedisCacheConn>> {
+    let redis_conn = match RedisCacheConn::init(url).await {
+        Ok(conn) => conn,
+        Err(e) => panic!("Failed to connect to MongoDB with error: {}", e),
+    };
+
+    Arc::new(Mutex::new(redis_conn))
+}
+
+// ========== CONFIG UTILS ========== //
 
 /// Loads the config file
 pub fn load_config() -> EnvConfig {
@@ -38,12 +75,15 @@ pub fn load_config() -> EnvConfig {
             body_limit: config
                 .get_int("body_limit")
                 .unwrap_or(SETTINGS_BODY_LIMIT as i64) as u64,
+            market: config.get_bool("market").unwrap_or(false),
         },
         Err(e) => {
             panic!("Failed to load config file with error: {e}")
         }
     }
 }
+
+// ========== MISC UTILS ========== //
 
 /// Constructs a 16 byte DRUID string
 pub fn construct_druid() -> String {

@@ -172,9 +172,11 @@ Again, the Weaver will validate the signature before returning the data to Bob.
 
 ### Further Work
 
+- [ ] Match public key to address for `get_data`
 - [ ] Add a rate limiting mechanism
 - [ ] Set Redis keys to expire (handle cache lifetimes)
 - [ ] Handle data storage over time
+- [ ] Handle multiple data entries per address
 - [ ] Add tests
 
 <p align="left">(<a href="#top">back to top</a>)</p>
