@@ -8,6 +8,7 @@ db_url = "mongodb://0.0.0.0"
 db_port = "27017"
 db_password = ""
 body_limit = 4096
+cache_ttl = 600 # cache lifetime in seconds
 
 # Plug-in options
 market = true

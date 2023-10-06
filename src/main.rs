@@ -4,6 +4,9 @@ pub mod constants;
 pub mod interfaces;
 pub mod utils;
 
+#[cfg(test)]
+pub mod tests;
+
 use crate::api::routes::*;
 use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, print_welcome};
 use futures::lock::Mutex;
@@ -28,6 +31,7 @@ async fn main() {
             cache_conn.clone(),
             cuckoo_filter.clone(),
             config.body_limit,
+            config.cache_ttl,
         ))
         // .or(listings(market_db_conn.clone(), cache_conn.clone()))
         // .or(orders_by_id(

@@ -124,9 +124,9 @@ The server functions on a very basic set of rules. Clients exchange data between
 
 ..
 
-### Available Routes
+### 🔌 Available Routes
 
-#### `set_data`
+#### **<img src="https://img.shields.io/badge/POST-07BEB8" alt="POST"/> `set_data`**
 Sets data in the Redis instance and marks it for pending retrieval in the server. To send data to Bob, we could use the following headers in the `set_data` call:
 
 ```json
@@ -149,7 +149,7 @@ The headers that Alice sends in her call will be validated by the Weaver, after 
 
 ..
 
-##### `get_data`
+##### **<img src="https://img.shields.io/badge/GET-2176FF" alt="GET"/> `get_data`**
 Gets pending data from the server for a given address. To retrieve data for Bob, he only has to supply his credentials in the call header:
 
 ```json
@@ -172,10 +172,9 @@ Again, the Weaver will validate the signature before returning the data to Bob.
 
 ### Further Work
 
-- [ ] Match public key to address for `get_data`
+- [x] Match public key to address for `get_data` (resolved by using address directly for retrieval)
 - [ ] Add a rate limiting mechanism
-- [ ] Set Redis keys to expire (handle cache lifetimes)
-- [ ] Handle data storage over time
+- [x] Set Redis keys to expire (handle cache lifetimes)
 - [ ] Handle multiple data entries per address
 - [ ] Add tests
 

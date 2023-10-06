@@ -6,7 +6,7 @@ use weaver_core::api::interfaces::CFilterConnection;
 use weaver_core::api::utils::{
     get_cors, map_api_res, post_cors, sig_verify_middleware, with_node_component,
 };
-use weaver_core::db::handler::KvStoreConnection;
+use weaver_core::db::handler::{CacheHandler, KvStoreConnection};
 
 // ========== BASE ROUTES ========== //
 
@@ -52,12 +52,13 @@ pub fn get_data<
 /// * `body_limit` - The maximum size of the request body
 pub fn set_data<
     D: KvStoreConnection + Clone + Send + Sync + 'static,
-    C: KvStoreConnection + Clone + Send + Sync + 'static,
+    C: KvStoreConnection + CacheHandler + Clone + Send + Sync + 'static,
 >(
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
     cuckoo_filter: CFilterConnection,
     body_limit: u64,
+    cache_ttl: usize,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path("set_data")
         .and(warp::post())
@@ -67,6 +68,9 @@ pub fn set_data<
         .and(with_node_component(cache))
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
-        .and_then(move |_, info, cache, db, cf| map_api_res(set_data_handler(info, db, cache, cf)))
+        .and(with_node_component(cache_ttl))
+        .and_then(move |_, info, cache, db, cf, cttl| {
+            map_api_res(set_data_handler(info, db, cache, cf, cttl))
+        })
         .with(post_cors())
 }

@@ -1,7 +1,7 @@
 use crate::constants::{
     CONFIG_FILE, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD,
-    SETTINGS_CACHE_PORT, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT,
-    SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
+    SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD,
+    SETTINGS_DB_PORT, SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
@@ -75,6 +75,9 @@ pub fn load_config() -> EnvConfig {
             body_limit: config
                 .get_int("body_limit")
                 .unwrap_or(SETTINGS_BODY_LIMIT as i64) as u64,
+            cache_ttl: config
+                .get_int("cache_ttl")
+                .unwrap_or(SETTINGS_CACHE_TTL as i64) as usize,
             market: config.get_bool("market").unwrap_or(false),
         },
         Err(e) => {

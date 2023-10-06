@@ -10,6 +10,7 @@ pub const SETTINGS_CACHE_URL: &str = "redis://127.0.0.1";
 pub const SETTINGS_CACHE_PORT: &str = "6379";
 pub const SETTINGS_CACHE_PASSWORD: &str = "password";
 pub const SETTINGS_BODY_LIMIT: u64 = 4096;
+pub const SETTINGS_CACHE_TTL: u64 = 600;
 
 /// ==== DRUID ==== ///
 

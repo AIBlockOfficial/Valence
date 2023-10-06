@@ -4,7 +4,7 @@ use std::sync::Arc;
 use weaver_core::api::errors::ApiErrorType;
 use weaver_core::api::interfaces::CFilterConnection;
 use weaver_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
-use weaver_core::db::handler::KvStoreConnection;
+use weaver_core::db::handler::{CacheHandler, KvStoreConnection};
 use weaver_core::utils::{deserialize_data, serialize_data};
 
 /// ========= BASE HANDLERS ========= ///
@@ -43,7 +43,11 @@ pub async fn get_data_handler<
     match cache_result {
         Ok(value) => {
             // Return data from cache
-            let final_data = deserialize_data::<String>(value.unwrap());
+            let final_data = if value.is_some() {
+                deserialize_data::<String>(value.unwrap())
+            } else {
+                "".to_string()
+            };
             r.into_ok(
                 "Data retrieved successfully",
                 json_serialize_embed(final_data),
@@ -78,12 +82,13 @@ pub async fn get_data_handler<
 /// * `c_filter` - Cuckoo filter connection
 pub async fn set_data_handler<
     D: KvStoreConnection + Clone + Send + 'static,
-    C: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + CacheHandler + Clone + Send + 'static,
 >(
     payload: SetRequestData,
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
     c_filter: CFilterConnection,
+    cache_ttl: usize,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("set_data");
 
@@ -97,6 +102,14 @@ pub async fn set_data_handler<
     // Add to DB
     let db_result = match cache_result {
         Ok(_) => {
+            // Set key expiry
+            let _ = cache
+                .lock()
+                .await
+                .expire_entry(&payload.address, cache_ttl)
+                .await;
+
+            // Set data in DB
             let data = match serde_json::from_str::<serde_json::Value>(&payload.data) {
                 Ok(data) => data,
                 Err(_) => {
