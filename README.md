@@ -7,12 +7,12 @@
     <div style="height: 50px; width: 100%"></div>
 
   <a>
-    <img src="https://github.com/ABlockOfficial/Weaver/blob/main/assets/hero.svg" alt="Logo" width="320px">
+    <img src="https://github.com/ABlockOfficial/Valence/blob/main/assets/hero.svg" alt="Logo" width="320px">
   </a>
 
   <div style="height: 50px; width: 100%"></div>
 
-  <h3>Weaver</h3>
+  <h3>Valence</h3>
 
   <!-- <div>
   <img src="https://img.shields.io/github/actions/workflow/status/Zenotta/Intercom/codeql-analysis.yml?branch=main" alt="Pipeline Status" />
@@ -80,13 +80,13 @@ With Docker installed and running, you can clone this repo and get everything in
 
 ```sh
 # SSH clone
-git clone git@gitlab.com:ABlockOfficial/Weaver.git
+git clone git@gitlab.com:ABlockOfficial/Valence.git
 
 # Navigate to the repo
-cd Weaver
+cd Valence
 
 # Build Docker image
-docker build -t weaver .
+docker build -t valence .
 ```
 
 <p align="left">(<a href="#top">back to top</a>)</p>
@@ -118,7 +118,7 @@ cargo run --release
 
 ## How it Works
 
-The server functions on a very basic set of rules. Clients exchange data between each other through the use of public key addresses. If Alice wants to exchange data with Bob, she will need to supply the Weaver node with Bob's address, as well as her own address, public key, and signature in the call headers. The next time Bob fetches data from the server using his public key address, he would find that Alice has exchanged data to him.
+The server functions on a very basic set of rules. Clients exchange data between each other through the use of public key addresses. If Alice wants to exchange data with Bob, she will need to supply the Valence node with Bob's address, as well as her own address, public key, and signature in the call headers. The next time Bob fetches data from the server using his public key address, he would find that Alice has exchanged data to him.
 
 <p align="left">(<a href="#top">back to top</a>)</p>
 
@@ -145,7 +145,7 @@ The body of the `set_data` call would contain the data being exchanged:
 }
 ```
 
-The headers that Alice sends in her call will be validated by the Weaver, after which they'll be stored at Bob's address for his later retrieval using the `get_data` call.
+The headers that Alice sends in her call will be validated by the Valence, after which they'll be stored at Bob's address for his later retrieval using the `get_data` call.
 
 ..
 
@@ -162,9 +162,9 @@ Gets pending data from the server for a given address. To retrieve data for Bob,
 ]
 ```
 
-Again, the Weaver will validate the signature before returning the data to Bob.
+Again, the Valence will validate the signature before returning the data to Bob.
 
-**For best practice, it's recommended that Alice and Bob encrypt their data using their private keys, before exchanging it with each other.** This ensures that the data exchange is E2E encrypted, and that the Weaver maintains no knowledge of the data's content.
+**For best practice, it's recommended that Alice and Bob encrypt their data using their private keys, before exchanging it with each other.** This ensures that the data exchange is E2E encrypted, and that the Valence maintains no knowledge of the data's content.
 
 <p align="left">(<a href="#top">back to top</a>)</p>
 

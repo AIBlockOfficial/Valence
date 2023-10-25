@@ -7,8 +7,8 @@ use crate::tests::interfaces::DbStub;
 use futures::lock::Mutex;
 use std::sync::Arc;
 use warp::Filter;
-use weaver_core::api::utils::handle_rejection;
-use weaver_core::db::handler::KvStoreConnection;
+use valence_core::api::utils::handle_rejection;
+use valence_core::db::handler::KvStoreConnection;
 
 //========== TESTS ==========//
 
@@ -40,7 +40,7 @@ async fn test_get_data_empty() {
     assert_eq!(res.status(), 500);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Error\",\"reason\":\"Cuckoo filter lookup failed, data for address not found on this Weaver\",\"route\":\"get_data\",\"content\":\"null\"}"
+        "{\"status\":\"Error\",\"reason\":\"Cuckoo filter lookup failed, data for address not found on this Valence\",\"route\":\"get_data\",\"content\":\"null\"}"
     );
 }
 
@@ -112,7 +112,7 @@ async fn test_set_data() {
     //
     // Act
     //
-    let filter = routes::set_data(db_stub, cache_stub, cfilter, 1000).recover(handle_rejection);
+    let filter = routes::set_data(db_stub, cache_stub, cfilter, 1000, 600).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
     //

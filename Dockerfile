@@ -8,7 +8,7 @@ RUN apt update && apt install -y musl-tools musl-dev
 RUN update-ca-certificates
 
 # Create appuser
-ENV USER=weaver
+ENV USER=valence
 ENV UID=10001
 
 RUN adduser \
@@ -21,7 +21,7 @@ RUN adduser \
     "${USER}"
 
 
-WORKDIR /weaver
+WORKDIR /valence
 
 COPY ./ .
 COPY ./config.toml ./
@@ -37,13 +37,13 @@ FROM alpine
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-WORKDIR /weaver
+WORKDIR /valence
 
 # Copy our build
-COPY --from=builder /weaver/target/x86_64-unknown-linux-musl/release/weaver ./
-COPY --from=builder /weaver/config.toml ./
+COPY --from=builder /valence/target/x86_64-unknown-linux-musl/release/valence ./
+COPY --from=builder /valence/config.toml ./
 
 # Use an unprivileged user.
-USER weaver:weaver
+USER valence:valence
 
-CMD ["/weaver/weaver"]
+CMD ["/valence/valence"]

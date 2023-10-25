@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use weaver_core::db::handler::{CacheHandler, KvStoreConnection};
-use weaver_core::utils::serialize_data;
+use valence_core::db::handler::{CacheHandler, KvStoreConnection};
+use valence_core::utils::serialize_data;
 
 //========== STUB INTERFACES ==========//
 
