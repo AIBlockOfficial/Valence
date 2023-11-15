@@ -6,9 +6,9 @@ use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID
 use crate::tests::interfaces::DbStub;
 use futures::lock::Mutex;
 use std::sync::Arc;
-use warp::Filter;
 use valence_core::api::utils::handle_rejection;
 use valence_core::db::handler::KvStoreConnection;
+use warp::Filter;
 
 //========== TESTS ==========//
 
@@ -112,7 +112,8 @@ async fn test_set_data() {
     //
     // Act
     //
-    let filter = routes::set_data(db_stub, cache_stub, cfilter, 1000, 600).recover(handle_rejection);
+    let filter =
+        routes::set_data(db_stub, cache_stub, cfilter, 1000, 600).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
     //

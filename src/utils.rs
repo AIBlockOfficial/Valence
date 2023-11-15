@@ -42,8 +42,6 @@ pub async fn construct_redis_conn(url: &str) -> Arc<Mutex<RedisCacheConn>> {
     Arc::new(Mutex::new(redis_conn))
 }
 
-pub async fn spawn_db_backup()
-
 // ========== CONFIG UTILS ========== //
 
 /// Loads the config file

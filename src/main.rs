@@ -11,9 +11,9 @@ use crate::api::routes::*;
 use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, print_welcome};
 use futures::lock::Mutex;
 use std::sync::Arc;
-use warp::Filter;
 use valence_core::api::utils::handle_rejection;
 use valence_market::api::routes::*;
+use warp::Filter;
 
 #[tokio::main]
 async fn main() {
