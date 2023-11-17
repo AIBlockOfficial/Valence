@@ -35,6 +35,9 @@ services:
     depends_on:
       - cache
       - db
+    links:
+      - cache
+      - db
     volumes:
       - ${PWD}/logs:/app/logs
     container_name: valence
