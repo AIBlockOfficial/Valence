@@ -10,7 +10,7 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - cache:/data/cache
-    container_name: redis-cache
+    container_name: cache
   db:
     image: mongo
     restart: always
@@ -23,7 +23,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
     volumes:
       - db:/data/db
-    container_name: mongo-db
+    container_name: db
   valence:
     build: .
     image: valence
