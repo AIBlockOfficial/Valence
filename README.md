@@ -7,7 +7,7 @@
     <div style="height: 50px; width: 100%"></div>
 
   <a>
-    <img src="https://github.com/ABlockOfficial/Valence/blob/main/assets/hero.svg" alt="Logo" width="320px">
+    <img src="https://github.com/ABlockOfficial/Valence/blob/main/assets/hero.svg" alt="Logo" width="150px">
   </a>
 
   <div style="height: 50px; width: 100%"></div>

@@ -22,6 +22,9 @@ async fn main() {
     let db_addr = format!("{}:{}", config.db_url, config.db_port);
     let cuckoo_filter = Arc::new(Mutex::new(cuckoofilter::CuckooFilter::new()));
 
+    println!("Connecting to Redis at {}", cache_addr);
+    println!("Connecting to MongoDB at {}", db_addr);
+
     let cache_conn = construct_redis_conn(&cache_addr).await;
     let db_conn = construct_mongodb_conn(&db_addr).await;
 
