@@ -1,11 +1,12 @@
 use crate::interfaces::SetRequestData;
 use futures::lock::Mutex;
+use serde_json::Value;
 use std::sync::Arc;
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use valence_core::db::handler::{CacheHandler, KvStoreConnection};
-use valence_core::utils::{deserialize_data, serialize_data};
+use valence_core::utils::serialize_data;
 
 // ========= BASE HANDLERS ========= //
 
@@ -38,32 +39,27 @@ pub async fn get_data_handler<
     }
 
     // Check cache first
-    let cache_result = cache.lock().await.get_data(&address).await;
+    let cache_result: Result<Option<Value>, _> = cache.lock().await.get_data(&address).await;
 
     match cache_result {
         Ok(value) => {
-            // Return data from cache
-            let final_data = if value.is_some() {
-                deserialize_data::<String>(value.unwrap())
-            } else {
-                "".to_string()
-            };
+            let value_stable = value.unwrap_or_default();
+
             r.into_ok(
                 "Data retrieved successfully",
-                json_serialize_embed(final_data),
+                json_serialize_embed(value_stable),
             )
         }
         Err(_) => {
             // Get data from DB
-            let db_result = db.lock().await.get_data(&address).await;
+            let db_result: Result<Option<Value>, _> = db.lock().await.get_data(&address).await;
 
             match db_result {
                 Ok(value) => {
-                    // Return data from DB
-                    let final_data = deserialize_data::<String>(value.unwrap());
+                    let value_stable = value.unwrap_or_default();
                     r.into_ok(
                         "Data retrieved successfully",
-                        json_serialize_embed(final_data),
+                        json_serialize_embed(value_stable),
                     )
                 }
                 Err(_) => r.into_err_internal(ApiErrorType::DBInsertionFailed),
@@ -109,15 +105,10 @@ pub async fn set_data_handler<
                 .expire_entry(&payload.address, cache_ttl)
                 .await;
 
-            // Set data in DB
-            let data = match serde_json::from_str::<serde_json::Value>(&payload.data) {
-                Ok(data) => data,
-                Err(_) => {
-                    return r.into_err_internal(ApiErrorType::DataSerializationFailed);
-                }
-            };
-
-            db.lock().await.set_data(&payload.address, data).await
+            db.lock()
+                .await
+                .set_data(&payload.address, payload.data)
+                .await
         }
         Err(_) => {
             return r.into_err_internal(ApiErrorType::CacheInsertionFailed);
