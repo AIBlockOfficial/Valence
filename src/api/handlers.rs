@@ -39,7 +39,7 @@ pub async fn get_data_handler<
     }
 
     // Check cache first
-    let cache_result: Result<Option<Value>, _> = cache.lock().await.get_data(&address).await;
+    let cache_result: Result<Option<Value>, _> = cache.lock().await.get_data(address).await;
 
     match cache_result {
         Ok(value) => {
@@ -52,7 +52,7 @@ pub async fn get_data_handler<
         }
         Err(_) => {
             // Get data from DB
-            let db_result: Result<Option<Value>, _> = db.lock().await.get_data(&address).await;
+            let db_result: Result<Option<Value>, _> = db.lock().await.get_data(address).await;
 
             match db_result {
                 Ok(value) => {

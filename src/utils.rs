@@ -114,7 +114,7 @@ pub fn construct_formatted_date() -> String {
 }
 
 pub fn print_welcome(db_addr: &str, cache_addr: &str) {
-    println!("");
+    println!();
     println!(
         " 
                      ___                         ___           ___           ___           ___     
@@ -132,8 +132,8 @@ pub fn print_welcome(db_addr: &str, cache_addr: &str) {
  "
     );
 
-    println!("");
+    println!();
     println!("Connecting to cache at {}", cache_addr);
     println!("Connecting to DB at {}", db_addr);
-    println!("");
+    println!();
 }

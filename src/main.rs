@@ -12,7 +12,7 @@ use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, pr
 use futures::lock::Mutex;
 use std::sync::Arc;
 use valence_core::api::utils::handle_rejection;
-use valence_market::api::routes::*;
+
 use warp::Filter;
 
 #[tokio::main]
