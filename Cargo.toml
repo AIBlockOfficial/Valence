@@ -21,5 +21,5 @@ serde_json = "1.0.103"
 tokio = { version="1.29.1", features=["full"] }
 tracing = "0.1.37"
 warp = "0.3.5"
-valence_core = "0.1.0" 
+valence_core = "0.1.2" 
 valence_market = "0.1.0"
