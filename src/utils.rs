@@ -1,7 +1,7 @@
 use crate::constants::{
     CONFIG_FILE, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD,
     SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD,
-    SETTINGS_DB_PORT, SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
+    SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL, SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
@@ -57,6 +57,12 @@ pub fn load_config() -> EnvConfig {
             db_url: config
                 .get_string("db_url")
                 .unwrap_or(SETTINGS_DB_URL.to_string()),
+            db_user: config
+                .get_string("db_user")
+                .unwrap_or(SETTINGS_DB_URL.to_string()),
+            db_protocol: config
+                .get_string("db_protocol")
+                .unwrap_or(SETTINGS_DB_PROTOCOL.to_string()),
             db_port: config
                 .get_string("db_port")
                 .unwrap_or(SETTINGS_DB_PORT.to_string()),
@@ -108,21 +114,26 @@ pub fn construct_formatted_date() -> String {
 }
 
 pub fn print_welcome(db_addr: &str, cache_addr: &str) {
-    println!("");
+    println!();
     println!(
         " 
-    
-  __     __     ______     ______     __   __   ______     ______    
- /\\ \\  _ \\ \\   /\\  ___\\   /\\  __ \\   /\\ \\ / /  /\\  ___\\   /\\  == \\   
- \\ \\ \\/ |.\\ \\  \\ \\  __\\   \\ \\  __ \\  \\ \\ \\'/   \\ \\  __\\   \\ \\  __<   
-  \\ \\__/|.~\\_\\  \\ \\_____\\  \\ \\_\\ \\_\\  \\ \\__|    \\ \\_____\\  \\ \\_\\ \\_\\ 
-   \\/_/   \\/_/   \\/_____/   \\/_/\\/_/   \\/_/      \\/_____/   \\/_/ /_/ 
+                     ___                         ___           ___           ___           ___     
+        ___         /  /\\                       /  /\\         /__/\\         /  /\\         /  /\\    
+       /__/\\       /  /::\\                     /  /:/_        \\  \\:\\       /  /:/        /  /:/_   
+       \\  \\:\\     /  /:/\\:\\    ___     ___    /  /:/ /\\        \\  \\:\\     /  /:/        /  /:/ /\\  
+        \\  \\:\\   /  /:/~/::\\  /__/\\   /  /\\  /  /:/ /:/_   _____\\__\\:\\   /  /:/  ___   /  /:/ /:/_ 
+    ___  \\__\\:\\ /__/:/ /:/\\:\\ \\  \\:\\ /  /:/ /__/:/ /:/ /\\ /__/::::::::\\ /__/:/  /  /\\ /__/:/ /:/ /\\
+   /__/\\ |  |:| \\  \\:\\/:/__\\/  \\  \\:\\  /:/  \\  \\:\\/:/ /:/ \\  \\:\\~~\\~~\\/ \\  \\:\\ /  /:/ \\  \\:\\/:/ /:/
+   \\  \\:\\|  |:|  \\  \\::/        \\  \\:\\/:/    \\  \\::/ /:/   \\  \\:\\  ~~~   \\  \\:\\  /:/   \\  \\::/ /:/ 
+    \\  \\:\\__|:|   \\  \\:\\         \\  \\::/      \\  \\:\\/:/     \\  \\:\\        \\  \\:\\/:/     \\  \\:\\/:/  
+     \\__\\::::/     \\  \\:\\         \\__\\/        \\  \\::/       \\  \\:\\        \\  \\::/       \\  \\::/   
+         ~~~~       \\__\\/                       \\__\\/         \\__\\/         \\__\\/         \\__\\/    
                                                                      
  "
     );
 
-    println!("");
+    println!();
     println!("Connecting to cache at {}", cache_addr);
     println!("Connecting to DB at {}", db_addr);
-    println!("");
+    println!();
 }

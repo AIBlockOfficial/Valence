@@ -11,19 +11,25 @@ use crate::api::routes::*;
 use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, print_welcome};
 use futures::lock::Mutex;
 use std::sync::Arc;
+use tracing::info;
 use valence_core::api::utils::handle_rejection;
-use valence_market::api::routes::*;
+
 use warp::Filter;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
+
     let config = load_config();
     let cache_addr = format!("{}:{}", config.cache_url, config.cache_port);
-    let db_addr = format!("{}:{}", config.db_url, config.db_port);
+    let db_addr = format!(
+        "{}{}:{}@{}:{}",
+        config.db_protocol, config.db_user, config.db_password, config.db_url, config.db_port
+    );
     let cuckoo_filter = Arc::new(Mutex::new(cuckoofilter::CuckooFilter::new()));
 
-    println!("Connecting to Redis at {}", cache_addr);
-    println!("Connecting to MongoDB at {}", db_addr);
+    info!("Connecting to Redis at {}", cache_addr);
+    info!("Connecting to MongoDB at {}", db_addr);
 
     let cache_conn = construct_redis_conn(&cache_addr).await;
     let db_conn = construct_mongodb_conn(&db_addr).await;
@@ -58,7 +64,7 @@ async fn main() {
 
     print_welcome(&db_addr, &cache_addr);
 
-    println!("Server running at localhost:{}", config.extern_port);
+    info!("Server running at localhost:{}", config.extern_port);
 
     warp::serve(routes)
         .run(([0, 0, 0, 0], config.extern_port))

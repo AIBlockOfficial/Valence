@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 // Define a struct to hold the data (public key, address, signature)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,12 +10,14 @@ pub struct GetRequestData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetRequestData {
     pub address: String,
-    pub data: String,
+    pub data: Value,
 }
 
 pub struct EnvConfig {
     pub debug: bool,
     pub extern_port: u16,
+    pub db_protocol: String,
+    pub db_user: String,
     pub db_url: String,
     pub db_port: String,
     pub db_password: String,

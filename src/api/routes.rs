@@ -1,6 +1,7 @@
 use crate::api::handlers::{get_data_handler, set_data_handler};
 use futures::lock::Mutex;
 use std::sync::Arc;
+use tracing::debug;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::utils::{
     get_cors, map_api_res, post_cors, sig_verify_middleware, with_node_component,
@@ -27,6 +28,8 @@ pub fn get_data<
     cache: Arc<Mutex<C>>,
     cuckoo_filter: CFilterConnection,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    debug!("Setting up get_data route");
+
     warp::path("get_data")
         .and(warp::get())
         .and(sig_verify_middleware())
@@ -35,6 +38,7 @@ pub fn get_data<
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
         .and_then(move |_, headers, cache, db, cf| {
+            debug!("GET_DATA requested");
             map_api_res(get_data_handler(headers, db, cache, cf))
         })
         .with(get_cors())
@@ -60,6 +64,8 @@ pub fn set_data<
     body_limit: u64,
     cache_ttl: usize,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    debug!("Setting up set_data route");
+
     warp::path("set_data")
         .and(warp::post())
         .and(sig_verify_middleware())
@@ -70,6 +76,7 @@ pub fn set_data<
         .and(with_node_component(cuckoo_filter))
         .and(with_node_component(cache_ttl))
         .and_then(move |_, info, cache, db, cf, cttl| {
+            debug!("SET_DATA requested");
             map_api_res(set_data_handler(info, db, cache, cf, cttl))
         })
         .with(post_cors())

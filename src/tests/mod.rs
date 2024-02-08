@@ -86,7 +86,7 @@ async fn test_get_data() {
     assert_eq!(res.status(), 200);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":\"\"}"
+        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":\"{\\\"Hello\\\":20}\"}"
     );
 }
 
@@ -122,6 +122,6 @@ async fn test_set_data() {
     assert_eq!(res.status(), 200);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Success\",\"reason\":\"Data set succcessfully\",\"route\":\"set_data\",\"content\":\"0x123\"}"
+        "{\"status\":\"Success\",\"reason\":\"Data set successfully\",\"route\":\"set_data\",\"content\":\"0x123\"}"
     );
 }
