@@ -1,11 +1,11 @@
 # This is a sample config TOML for Valence
 debug = false
 extern_port = 3030
-cache_url = "redis://cache"
+cache_url = "redis://0.0.0.0"
 cache_port = "6379"
 cache_password = ""
 db_protocol = "mongodb://"
-db_url = "127.0.0.1"
+db_url = "0.0.0.0"
 db_port = "27017"
 db_user = "root"
 db_password = "example"

@@ -7,6 +7,7 @@ use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use valence_core::db::handler::{CacheHandler, KvStoreConnection};
 use valence_core::utils::serialize_data;
+use tracing::{error, info, warn};
 
 // ========= BASE HANDLERS ========= //
 
@@ -28,6 +29,8 @@ pub async fn get_data_handler<
     c_filter: CFilterConnection,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("get_data");
+    info!("GET_DATA requested with headers: {:?}", headers);
+
     let address = headers
         .get("address")
         .and_then(|n| n.to_str().ok())
@@ -35,6 +38,7 @@ pub async fn get_data_handler<
 
     // Check if address is in cuckoo filter
     if !c_filter.lock().await.contains(&address) {
+        error!("Address not found in cuckoo filter");
         return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
@@ -51,6 +55,9 @@ pub async fn get_data_handler<
             )
         }
         Err(_) => {
+            warn!("Cache lookup failed for address: {}", address);
+            warn!("Attempting to retrieve data from DB");
+            
             // Get data from DB
             let db_result: Result<Option<Value>, _> = db.lock().await.get_data(address).await;
 
@@ -87,6 +94,7 @@ pub async fn set_data_handler<
     cache_ttl: usize,
 ) -> Result<JsonReply, JsonReply> {
     let r = CallResponse::new("set_data");
+    info!("SET_DATA requested with payload: {:?}", payload);
 
     // Add to cache
     let cache_result = cache
@@ -125,7 +133,7 @@ pub async fn set_data_handler<
 
     match c_filter_result {
         Ok(_) => r.into_ok(
-            "Data set succcessfully",
+            "Data set successfully",
             json_serialize_embed(payload.address),
         ),
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
