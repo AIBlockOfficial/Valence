@@ -2,12 +2,12 @@ use crate::interfaces::SetRequestData;
 use futures::lock::Mutex;
 use serde_json::Value;
 use std::sync::Arc;
+use tracing::{error, info, warn};
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use valence_core::db::handler::{CacheHandler, KvStoreConnection};
 use valence_core::utils::serialize_data;
-use tracing::{error, info, warn};
 
 // ========= BASE HANDLERS ========= //
 
@@ -57,7 +57,7 @@ pub async fn get_data_handler<
         Err(_) => {
             warn!("Cache lookup failed for address: {}", address);
             warn!("Attempting to retrieve data from DB");
-            
+
             // Get data from DB
             let db_result: Result<Option<Value>, _> = db.lock().await.get_data(address).await;
 

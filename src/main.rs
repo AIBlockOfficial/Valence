@@ -11,8 +11,8 @@ use crate::api::routes::*;
 use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, print_welcome};
 use futures::lock::Mutex;
 use std::sync::Arc;
-use valence_core::api::utils::handle_rejection;
 use tracing::info;
+use valence_core::api::utils::handle_rejection;
 
 use warp::Filter;
 
