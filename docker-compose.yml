@@ -1,7 +1,14 @@
 version: '3'
+
+networks:
+  app-tier:
+    driver: bridge
+
 services:
   cache:
     image: redis:6.2.6-alpine
+    networks:
+      - app-tier
     restart: always
     ports:
       - 6379:6379
@@ -10,23 +17,24 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - cache:/data/cache
-    container_name: cache
   db:
-    image: mongo
+    image: bitnami/mongodb:7.0.5
+    networks:
+      - app-tier
     restart: always
     ports:
       - 27017:27017
     expose:
       - 27017
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-    volumes:
-      - db:/data/db
-    container_name: db
+    # environment:
+    #   MONGODB_ROOT_USER: root
+    # volumes:
+    #   - db:/data/db
   valence:
     build: .
     image: valence
+    networks:
+      - app-tier
     ports:
       - 3030:3030
     expose:
@@ -35,12 +43,11 @@ services:
     depends_on:
       - cache
       - db
-    links:
-      - cache
-      - db
+    # links:
+    #   - cache
+    #   - db
     volumes:
       - ${PWD}/logs:/app/logs
-    container_name: valence
 volumes:
   cache:
     driver: local
