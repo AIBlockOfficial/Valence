@@ -44,7 +44,11 @@ impl KvStoreConnection for DbStub {
             return Ok(None);
         }
 
-        let data = self.data.clone().unwrap();
+        let data = match self.data.clone() {
+            Some(d) => d,
+            None => return Ok(None),
+        
+        };
 
         match get_de_data::<T>(data) {
             Ok(d) => Ok(Some(d)),
