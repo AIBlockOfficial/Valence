@@ -8,4 +8,4 @@ on:
 
 jobs:
   scan-code:
-    uses: {{ vars.ORGANISATION_WORKFLOW_PATH }}/scan-code.yml@main
+    uses: ${{ vars.ORGANISATION_WORKFLOW_PATH }}/scan-code.yml@main
