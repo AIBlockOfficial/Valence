@@ -1,0 +1,17 @@
+name: build-and-push
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  build:
+    uses: {{ vars.ORGANISATION_WORKFLOW_PATH }}/build.yml@main
+    with:
+      REGISTRY: ${{ vars.REGISTRY }}
+      REPOSITORY: ${{ vars.REPOSITORY }}

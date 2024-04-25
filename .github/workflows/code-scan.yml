@@ -1,0 +1,11 @@
+name: code-scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  scan-code:
+    uses: {{ vars.ORGANISATION_WORKFLOW_PATH }}/scan-code.yml@main
