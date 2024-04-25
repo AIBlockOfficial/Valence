@@ -16,7 +16,7 @@ env:
 
 jobs:
   build: 
-    uses: ${{ vars.ORGANISATION_WORKFLOW_PATH }}/build.yml@main
+    uses: aiblockofficial/workflows/.github/workflows/build.yml@main
     with: 
       REGISTRY:  ${{ vars.REGISTRY }}
       REPOSITORY: ${{ vars.REPOSITORY }}
