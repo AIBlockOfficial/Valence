@@ -39,7 +39,7 @@ impl KvStoreConnection for DbStub {
     async fn get_data<T: DeserializeOwned>(
         &mut self,
         _key: &str,
-    ) -> Result<Option<T>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Option<Vec<T>>, Box<dyn std::error::Error + Send + Sync>> {
         if self.data.is_none() {
             return Ok(None);
         }
@@ -47,13 +47,32 @@ impl KvStoreConnection for DbStub {
         let data = match self.data.clone() {
             Some(d) => d,
             None => return Ok(None),
-        
         };
 
-        match get_de_data::<T>(data) {
+        match get_de_data::<Vec<T>>(data) {
             Ok(d) => Ok(Some(d)),
             Err(_) => Ok(None),
         }
+    }
+
+    async fn delete_data(
+        &mut self,
+        _key: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.data = None;
+
+        Ok(())
+    }
+
+    async fn set_data_with_expiry<T: Serialize + Send>(
+        &mut self,
+        _key: &str,
+        value: T,
+        _seconds: usize,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.data = Some(serialize_data(&value));
+
+        Ok(())
     }
 
     async fn set_data<T: Serialize + Send>(

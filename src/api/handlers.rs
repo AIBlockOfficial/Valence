@@ -43,7 +43,8 @@ pub async fn get_data_handler<
     }
 
     // Check cache first
-    let cache_result: Result<Option<Value>, _> = cache.lock().await.get_data(address).await;
+    let mut cache_lock_result = cache.lock().await;
+    let cache_result: Result<Option<Vec<Value>>, _> = cache_lock_result.get_data(address).await;
 
     match cache_result {
         Ok(value) => {
@@ -59,7 +60,8 @@ pub async fn get_data_handler<
             warn!("Attempting to retrieve data from DB");
 
             // Get data from DB
-            let db_result: Result<Option<Value>, _> = db.lock().await.get_data(address).await;
+            let mut lock_result = db.lock().await;
+            let db_result: Result<Option<Vec<Value>>, _> = lock_result.get_data(address).await;
 
             match db_result {
                 Ok(value) => {
