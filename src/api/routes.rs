@@ -1,5 +1,7 @@
 use crate::api::handlers::{get_data_handler, set_data_handler};
 use futures::lock::Mutex;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::sync::Arc;
 use tracing::debug;
 use valence_core::api::interfaces::CFilterConnection;
@@ -23,6 +25,7 @@ use warp::{Filter, Rejection, Reply};
 pub fn get_data<
     D: KvStoreConnection + Clone + Send + 'static,
     C: KvStoreConnection + Clone + Send + 'static,
+    T: Serialize + DeserializeOwned,
 >(
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
@@ -38,6 +41,7 @@ pub fn get_data<
         .and(with_node_component(db))
         .and(with_node_component(cuckoo_filter))
         .and_then(move |_, headers, cache, db, cf| {
+            // Add type annotation for headers parameter
             debug!("GET_DATA requested");
             map_api_res(get_data_handler(headers, db, cache, cf))
         })
