@@ -1,5 +1,5 @@
-use crate::interfaces::SetRequestData;
 use crate::api::utils::retrieve_from_db;
+use crate::interfaces::SetRequestData;
 use futures::lock::Mutex;
 use serde_json::Value;
 use std::sync::Arc;
@@ -52,10 +52,7 @@ pub async fn get_data_handler<
             match value {
                 Some(value) => {
                     info!("Data retrieved from cache");
-                    return r.into_ok(
-                        "Data retrieved successfully",
-                        json_serialize_embed(value),
-                    );
+                    return r.into_ok("Data retrieved successfully", json_serialize_embed(value));
                 }
                 None => {
                     // Default to checking from DB if cache is empty

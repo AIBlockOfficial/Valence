@@ -91,7 +91,7 @@ async fn test_get_data() {
     assert_eq!(res.status(), 200);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":[]}"
+        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":null}"
     );
 }
 
