@@ -1,4 +1,5 @@
 use crate::interfaces::SetRequestData;
+use crate::api::utils::retrieve_from_db;
 use futures::lock::Mutex;
 use serde_json::Value;
 use std::sync::Arc;
@@ -48,31 +49,27 @@ pub async fn get_data_handler<
 
     match cache_result {
         Ok(value) => {
-            let value_stable = value.unwrap_or_default();
-
-            r.into_ok(
-                "Data retrieved successfully",
-                json_serialize_embed(value_stable),
-            )
+            match value {
+                Some(value) => {
+                    info!("Data retrieved from cache");
+                    return r.into_ok(
+                        "Data retrieved successfully",
+                        json_serialize_embed(value),
+                    );
+                }
+                None => {
+                    // Default to checking from DB if cache is empty
+                    warn!("Cache lookup failed for address: {}", address);
+                    retrieve_from_db(db, address).await
+                }
+            }
         }
         Err(_) => {
             warn!("Cache lookup failed for address: {}", address);
             warn!("Attempting to retrieve data from DB");
 
             // Get data from DB
-            let mut lock_result = db.lock().await;
-            let db_result: Result<Option<Vec<Value>>, _> = lock_result.get_data(address).await;
-
-            match db_result {
-                Ok(value) => {
-                    let value_stable = value.unwrap_or_default();
-                    r.into_ok(
-                        "Data retrieved successfully",
-                        json_serialize_embed(value_stable),
-                    )
-                }
-                Err(_) => r.into_err_internal(ApiErrorType::DBInsertionFailed),
-            }
+            retrieve_from_db(db, address).await
         }
     }
 }
