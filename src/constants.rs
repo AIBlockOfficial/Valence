@@ -25,3 +25,4 @@ pub const DRUID_LENGTH: usize = 16;
 /// ==== STORAGE ==== ///
 
 pub const DB_KEY: &str = "default";
+pub const CUCKOO_FILTER_KEY: &str = "cuckoo_filter";
