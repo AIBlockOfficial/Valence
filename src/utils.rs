@@ -1,7 +1,8 @@
 use crate::constants::{
-    CONFIG_FILE, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD,
-    SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD,
-    SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL, SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT, CUCKOO_FILTER_KEY
+    CONFIG_FILE, CUCKOO_FILTER_KEY, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT,
+    SETTINGS_CACHE_PASSWORD, SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL,
+    SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL, SETTINGS_DB_URL, SETTINGS_DEBUG,
+    SETTINGS_EXTERN_PORT,
 };
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
@@ -11,6 +12,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::sync::Arc;
+use tracing::info;
 use valence_core::db::handler::KvStoreConnection;
 use valence_core::db::mongo_db::MongoDbConn;
 use valence_core::db::redis_cache::RedisCacheConn;
@@ -75,62 +77,84 @@ pub async fn construct_redis_conn(url: &str) -> Arc<Mutex<RedisCacheConn>> {
 // ========== CUCKOO FILTER UTILS ========== //
 
 /// Saves the cuckoo filter to disk
-/// 
+///
 /// ### Arguments
-/// 
+///
 /// * `cf` - The cuckoo filter to save
 /// * `db` - The database connection
-pub async fn save_cuckoo_filter_to_disk<T: KvStoreConnection>(cf: &CuckooFilter<DefaultHasher>, db: Arc<Mutex<T>>) -> Result<(), String> {
+pub async fn save_cuckoo_filter_to_disk<T: KvStoreConnection>(
+    cf: &CuckooFilter<DefaultHasher>,
+    db: Arc<Mutex<T>>,
+) -> Result<(), String> {
     let cuckoo_export = cf.export();
     let serializable_cuckoo: StorageReadyCuckooFilter = cuckoo_export.into();
     let mut db_lock = db.lock().await;
 
-    match db_lock.set_data(CUCKOO_FILTER_KEY, serializable_cuckoo).await {
+    match db_lock
+        .set_data(CUCKOO_FILTER_KEY, serializable_cuckoo)
+        .await
+    {
         Ok(_) => Ok(()),
-        Err(e) => Err(format!("Failed to save cuckoo filter to disk with error: {}", e)),
-    }   
+        Err(e) => Err(format!(
+            "Failed to save cuckoo filter to disk with error: {}",
+            e
+        )),
+    }
 }
 
 /// Loads the cuckoo filter from disk
-/// 
+///
 /// ### Arguments
-/// 
+///
 /// * `db` - The database connection
-pub async fn load_cuckoo_filter_from_disk<T: KvStoreConnection>(db: Arc<Mutex<T>>) -> Result<CuckooFilter<DefaultHasher>, String> {
+pub async fn load_cuckoo_filter_from_disk<T: KvStoreConnection>(
+    db: Arc<Mutex<T>>,
+) -> Result<CuckooFilter<DefaultHasher>, String> {
     let mut db_lock = db.lock().await;
 
     match db_lock.get_data(CUCKOO_FILTER_KEY).await {
-        Ok(data) => {
-            match data {
-                Some(data) => {
-                    let cuckoo_filter: StorageReadyCuckooFilter = match serde_json::from_slice(&data) {
-                        Ok(cf) => cf,
-                        Err(e) => return Err(format!("Failed to deserialize cuckoo filter from disk with error: {}", e))
-                    };
-                    
-                    let cfe: ExportedCuckooFilter = cuckoo_filter.into();
-                    let cf = CuckooFilter::from(cfe);
+        Ok(data) => match data {
+            Some(data) => {
+                let cuckoo_filter: StorageReadyCuckooFilter = match serde_json::from_slice(&data) {
+                    Ok(cf) => cf,
+                    Err(e) => {
+                        return Err(format!(
+                            "Failed to deserialize cuckoo filter from disk with error: {}",
+                            e
+                        ))
+                    }
+                };
 
-                    Ok(cf)
-                },
-                None => Err("No cuckoo filter found in DB".to_string())
+                let cfe: ExportedCuckooFilter = cuckoo_filter.into();
+                let cf = CuckooFilter::from(cfe);
+
+                Ok(cf)
             }
+            None => Err("No cuckoo filter found in DB".to_string()),
         },
-        Err(e) => Err(format!("Failed to load cuckoo filter from disk with error: {}", e))
+        Err(e) => Err(format!(
+            "Failed to load cuckoo filter from disk with error: {}",
+            e
+        )),
     }
 }
 
 /// Initializes the cuckoo filter
-/// 
+///
 /// ### Arguments
-/// 
+///
 /// * `db` - The database connection
-pub async fn init_cuckoo_filter<T: KvStoreConnection>(db: Arc<Mutex<T>>) -> Result<CuckooFilter<DefaultHasher>, String> {
+pub async fn init_cuckoo_filter<T: KvStoreConnection>(
+    db: Arc<Mutex<T>>,
+) -> Result<CuckooFilter<DefaultHasher>, String> {
     match load_cuckoo_filter_from_disk(db.clone()).await {
         Ok(cf) => Ok(cf),
         Err(_) => {
+            info!("No cuckoo filter found in DB, initializing new one");
             let cf = CuckooFilter::new();
             save_cuckoo_filter_to_disk(&cf, db).await.unwrap();
+
+            info!("New cuckoo filter saved to database");
 
             Ok(cf)
         }

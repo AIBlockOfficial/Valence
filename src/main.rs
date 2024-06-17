@@ -8,7 +8,9 @@ pub mod utils;
 pub mod tests;
 
 use crate::api::routes::*;
-use crate::utils::{construct_mongodb_conn, construct_redis_conn, load_config, print_welcome, init_cuckoo_filter};
+use crate::utils::{
+    construct_mongodb_conn, construct_redis_conn, init_cuckoo_filter, load_config, print_welcome,
+};
 
 use futures::lock::Mutex;
 use serde_json::Value;
@@ -30,12 +32,10 @@ async fn main() {
         "{}{}:{}@{}:{}",
         config.db_protocol, config.db_user, config.db_password, config.db_url, config.db_port
     );
-    
+
     info!("Connecting to Redis at {}", cache_addr);
     info!("Connecting to MongoDB at {}", db_addr);
 
-    
-    
     let cache_conn = construct_redis_conn(&cache_addr).await;
     let db_conn = construct_mongodb_conn(&db_addr).await;
 
@@ -44,6 +44,8 @@ async fn main() {
         Err(e) => panic!("Failed to initialize cuckoo filter with error: {}", e),
     };
     let cuckoo_filter = Arc::new(Mutex::new(cf_import));
+
+    info!("Cuckoo filter initialized successfully");
 
     let routes = get_data::<MongoDbConn, RedisCacheConn, Value>(
         db_conn.clone(),
