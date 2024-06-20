@@ -45,7 +45,8 @@ pub async fn get_data_handler<
 
     // Check cache first
     let mut cache_lock_result = cache.lock().await;
-    let cache_result: Result<Option<Vec<String>>, _> = cache_lock_result.get_data::<String>(address).await;
+    let cache_result: Result<Option<Vec<String>>, _> =
+        cache_lock_result.get_data::<String>(address).await;
 
     info!("Cache result: {:?}", cache_result);
 
@@ -54,7 +55,10 @@ pub async fn get_data_handler<
             match value {
                 Some(value) => {
                     info!("Data retrieved from cache");
-                    let data = value.iter().map(|v| serde_json::from_str(v).unwrap()).collect::<Vec<Value>>();
+                    let data = value
+                        .iter()
+                        .map(|v| serde_json::from_str(v).unwrap())
+                        .collect::<Vec<Value>>();
                     return r.into_ok("Data retrieved successfully", json_serialize_embed(data));
                 }
                 None => {
