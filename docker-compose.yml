@@ -30,24 +30,24 @@ services:
     #   MONGODB_ROOT_USER: root
     # volumes:
     #   - db:/data/db
-  valence:
-    build: .
-    image: valence
-    networks:
-      - app-tier
-    ports:
-      - 3030:3030
-    expose:
-      - 3030
-    restart: always
-    depends_on:
-      - cache
-      - db
-    # links:
-    #   - cache
-    #   - db
-    volumes:
-      - ${PWD}/logs:/app/logs
+  # valence:
+  #   build: .
+  #   image: valence
+  #   networks:
+  #     - app-tier
+  #   ports:
+  #     - 3030:3030
+  #   expose:
+  #     - 3030
+  #   restart: always
+  #   depends_on:
+  #     - cache
+  #     - db
+  #   # links:
+  #   #   - cache
+  #   #   - db
+  #   volumes:
+  #     - ${PWD}/logs:/app/logs
 volumes:
   cache:
     driver: local
