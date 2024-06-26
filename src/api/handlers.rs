@@ -1,7 +1,8 @@
-use crate::api::utils::retrieve_from_db;
-use crate::interfaces::SetRequestData;
+use crate::api::utils::{retrieve_from_db, serialize_all_entries};
+use crate::interfaces::{SetRequestData, SetSaveData};
 use futures::lock::Mutex;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use valence_core::api::errors::ApiErrorType;
@@ -25,6 +26,7 @@ pub async fn get_data_handler<
     C: KvStoreConnection + Clone + Send + 'static,
 >(
     headers: warp::hyper::HeaderMap,
+    value_id: Option<String>,
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
     c_filter: CFilterConnection,
@@ -45,8 +47,9 @@ pub async fn get_data_handler<
 
     // Check cache first
     let mut cache_lock_result = cache.lock().await;
-    let cache_result: Result<Option<Vec<String>>, _> =
-        cache_lock_result.get_data::<String>(address).await;
+    let cache_result: Result<Option<HashMap<String, String>>, _> = cache_lock_result
+        .get_data::<String>(address, value_id.as_deref())
+        .await;
 
     info!("Cache result: {:?}", cache_result);
 
@@ -55,16 +58,32 @@ pub async fn get_data_handler<
             match value {
                 Some(value) => {
                     info!("Data retrieved from cache");
-                    let data = value
-                        .iter()
-                        .map(|v| serde_json::from_str(v).unwrap())
-                        .collect::<Vec<Value>>();
-                    return r.into_ok("Data retrieved successfully", json_serialize_embed(data));
+                    if let Some(id) = value_id {
+                        if !value.contains_key(&id) {
+                            return r.into_err_internal(ApiErrorType::Generic(
+                                "Value ID not found".to_string(),
+                            ));
+                        }
+
+                        let data = value.get(&id).unwrap().clone();
+                        let final_result: Value = serde_json::from_str(&data).unwrap();
+                        return r.into_ok(
+                            "Data retrieved successfully",
+                            json_serialize_embed(final_result),
+                        );
+                    }
+
+                    let final_value = serialize_all_entries(value);
+
+                    return r.into_ok(
+                        "Data retrieved successfully",
+                        json_serialize_embed(final_value),
+                    );
                 }
                 None => {
                     // Default to checking from DB if cache is empty
                     warn!("Cache lookup failed for address: {}", address);
-                    retrieve_from_db(db, address).await
+                    retrieve_from_db(db, address, value_id.as_deref()).await
                 }
             }
         }
@@ -73,7 +92,7 @@ pub async fn get_data_handler<
             warn!("Attempting to retrieve data from DB");
 
             // Get data from DB
-            retrieve_from_db(db, address).await
+            retrieve_from_db(db, address, value_id.as_deref()).await
         }
     }
 }
@@ -99,11 +118,22 @@ pub async fn set_data_handler<
     let r = CallResponse::new("set_data");
     info!("SET_DATA requested with payload: {:?}", payload);
 
+    let data_to_save: SetSaveData = {
+        SetSaveData {
+            address: payload.address.clone(),
+            data: payload.data.clone(),
+        }
+    };
+
     // Add to cache
     let cache_result = cache
         .lock()
         .await
-        .set_data(&payload.address.clone(), serialize_data(&payload.data))
+        .set_data(
+            &payload.address.clone(),
+            &payload.data_id,
+            serialize_data(&data_to_save),
+        )
         .await;
 
     // Add to DB
@@ -118,7 +148,7 @@ pub async fn set_data_handler<
 
             db.lock()
                 .await
-                .set_data(&payload.address, payload.data)
+                .set_data(&payload.address, &payload.data_id, data_to_save)
                 .await
         }
         Err(_) => {

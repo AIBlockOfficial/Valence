@@ -13,12 +13,9 @@ use crate::utils::{
 };
 
 use futures::lock::Mutex;
-use serde_json::Value;
 use std::sync::Arc;
 use tracing::info;
 use valence_core::api::utils::handle_rejection;
-use valence_core::db::mongo_db::MongoDbConn;
-use valence_core::db::redis_cache::RedisCacheConn;
 
 use warp::Filter;
 
@@ -48,37 +45,20 @@ async fn main() {
 
     info!("Cuckoo filter initialized successfully");
 
-    let routes = get_data::<MongoDbConn, RedisCacheConn, Value>(
-        db_conn.clone(),
-        cache_conn.clone(),
-        cuckoo_filter.clone(),
-    )
-    .or(set_data(
-        db_conn.clone(),
-        cache_conn.clone(),
-        cuckoo_filter.clone(),
-        config.body_limit,
-        config.cache_ttl,
-    ))
-    // .or(listings(market_db_conn.clone(), cache_conn.clone()))
-    // .or(orders_by_id(
-    //     market_db_conn.clone(),
-    //     cache_conn.clone(),
-    //     cuckoo_filter.clone(),
-    // ))
-    // .or(orders_send(
-    //     market_db_conn.clone(),
-    //     cache_conn.clone(),
-    //     cuckoo_filter.clone(),
-    //     config.body_limit,
-    // ))
-    // .or(listing_send(
-    //     market_db_conn.clone(),
-    //     cache_conn.clone(),
-    //     cuckoo_filter.clone(),
-    //     config.body_limit,
-    // ))
-    .recover(handle_rejection);
+    let routes = get_data(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone())
+        .or(get_data_with_id(
+            db_conn.clone(),
+            cache_conn.clone(),
+            cuckoo_filter.clone(),
+        ))
+        .or(set_data(
+            db_conn.clone(),
+            cache_conn.clone(),
+            cuckoo_filter.clone(),
+            config.body_limit,
+            config.cache_ttl,
+        ))
+        .recover(handle_rejection);
 
     print_welcome(&db_addr, &cache_addr);
 

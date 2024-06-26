@@ -1,8 +1,8 @@
 use crate::constants::{
-    CONFIG_FILE, CUCKOO_FILTER_KEY, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT,
-    SETTINGS_CACHE_PASSWORD, SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL,
-    SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL, SETTINGS_DB_URL, SETTINGS_DEBUG,
-    SETTINGS_EXTERN_PORT,
+    CONFIG_FILE, CUCKOO_FILTER_KEY, CUCKOO_FILTER_VALUE_ID, DRUID_CHARSET, DRUID_LENGTH,
+    SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD, SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL,
+    SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL,
+    SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
@@ -20,7 +20,7 @@ use valence_core::db::redis_cache::RedisCacheConn;
 // ========== STORAGE SERIALIZATION FOR CUCKOO FILTER ========== //
 
 /// Serializable struct for cuckoo filter
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct StorageReadyCuckooFilter {
     values: Vec<u8>,
     length: usize,
@@ -91,10 +91,17 @@ pub async fn save_cuckoo_filter_to_disk<T: KvStoreConnection>(
     let mut db_lock = db.lock().await;
 
     match db_lock
-        .set_data(CUCKOO_FILTER_KEY, serializable_cuckoo)
+        .set_data(
+            CUCKOO_FILTER_KEY,
+            CUCKOO_FILTER_VALUE_ID,
+            serializable_cuckoo,
+        )
         .await
     {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            info!("Cuckoo filter saved to disk successfully");
+            Ok(())
+        }
         Err(e) => Err(format!(
             "Failed to save cuckoo filter to disk with error: {}",
             e
@@ -112,21 +119,18 @@ pub async fn load_cuckoo_filter_from_disk<T: KvStoreConnection>(
 ) -> Result<CuckooFilter<DefaultHasher>, String> {
     let mut db_lock = db.lock().await;
 
-    match db_lock.get_data(CUCKOO_FILTER_KEY).await {
+    match db_lock
+        .get_data::<StorageReadyCuckooFilter>(CUCKOO_FILTER_KEY, Some(CUCKOO_FILTER_VALUE_ID))
+        .await
+    {
         Ok(data) => match data {
             Some(data) => {
-                let cuckoo_filter: StorageReadyCuckooFilter = match serde_json::from_slice(&data) {
-                    Ok(cf) => cf,
-                    Err(e) => {
-                        return Err(format!(
-                            "Failed to deserialize cuckoo filter from disk with error: {}",
-                            e
-                        ))
-                    }
-                };
+                let cf: StorageReadyCuckooFilter =
+                    data.get(CUCKOO_FILTER_VALUE_ID).unwrap().clone();
+                info!("Found existing cuckoo filter. Loaded from disk successfully");
 
-                let cfe: ExportedCuckooFilter = cuckoo_filter.into();
-                let cf = CuckooFilter::from(cfe);
+                let cfe: ExportedCuckooFilter = cf.into();
+                let cf: CuckooFilter<DefaultHasher> = CuckooFilter::from(cfe);
 
                 Ok(cf)
             }
