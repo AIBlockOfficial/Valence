@@ -1,4 +1,4 @@
-use crate::api::handlers::{get_data_handler, set_data_handler};
+use crate::api::handlers::{get_data_handler, set_data_handler, del_data_handler};
 use futures::lock::Mutex;
 use std::sync::Arc;
 use tracing::debug;
@@ -40,7 +40,7 @@ pub fn get_data_with_id<
         .and(with_node_component(cuckoo_filter))
         .and_then(move |_, headers, value_id: String, cache, db, cf| {
             // Add type annotation for headers parameter
-            debug!("GET_DATA requested");
+            debug!("GET_DATA requested with value_id({:?})", value_id);
             map_api_res(get_data_handler(headers, Some(value_id), db, cache, cf))
         })
         .with(get_cors())
@@ -107,4 +107,38 @@ pub fn set_data<
             map_api_res(set_data_handler(info, db, cache, cf, cttl))
         })
         .with(post_cors())
+}
+
+/// DELETE /del_data
+///
+/// Deletes all data associated with a given address
+///
+/// ### Arguments
+///
+/// * `db` - The database connection to use
+/// * `cache` - The cache connection to use
+/// * `cuckoo_filter` - The cuckoo filter connection to use
+pub fn del_data<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    cuckoo_filter: CFilterConnection,
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    debug!("Setting up del_data route");
+
+    warp::path("del_data")
+        .and(warp::delete())
+        .and(sig_verify_middleware())
+        .and(warp::header::headers_cloned())
+        .and(with_node_component(cache))
+        .and(with_node_component(db))
+        .and(with_node_component(cuckoo_filter))
+        .and_then(move |_, headers, cache, db, cf| {
+            // Add type annotation for headers parameter
+            debug!("DEL_DATA requested");
+            map_api_res(del_data_handler(headers, None, db, cache, cf))
+        })
+        .with(get_cors())
 }

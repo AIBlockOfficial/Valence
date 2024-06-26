@@ -1,10 +1,10 @@
-use crate::api::utils::{retrieve_from_db, serialize_all_entries};
+use crate::api::utils::{retrieve_from_db, delete_from_db, serialize_all_entries};
 use crate::interfaces::{SetRequestData, SetSaveData};
 use futures::lock::Mutex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
@@ -17,7 +17,8 @@ use valence_core::utils::serialize_data;
 ///
 /// ### Arguments
 ///
-/// * `payload` - Request payload
+/// * `headers` - Request headers
+/// * `value_id` - Value ID to retrieve
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
@@ -105,6 +106,7 @@ pub async fn get_data_handler<
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
+/// * `cache_ttl` - Cache TTL
 pub async fn set_data_handler<
     D: KvStoreConnection + Clone + Send + 'static,
     C: KvStoreConnection + CacheHandler + Clone + Send + 'static,
@@ -170,5 +172,58 @@ pub async fn set_data_handler<
             json_serialize_embed(payload.address),
         ),
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
+    }
+}
+
+/// Route to del data from DB
+///
+/// /// ### Arguments
+///
+/// * `headers` - Request headers
+/// * `value_id` - Value ID to retrieve
+/// * `db` - Database connection
+/// * `cache` - Cache connection
+/// * `c_filter` - Cuckoo filter connection
+pub async fn del_data_handler<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    headers: warp::hyper::HeaderMap,
+    value_id: Option<String>,
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    c_filter: CFilterConnection,
+) -> Result<JsonReply, JsonReply> {
+    let r = CallResponse::new("del_data");
+    info!("DEL_DATA requested with headers: {:?}", headers);
+
+    let address = headers
+        .get("address")
+        .and_then(|n| n.to_str().ok())
+        .unwrap_or_default();
+
+    // delete address in cuckoo filter if no value_id is provided
+    if value_id.is_none() && !c_filter.lock().await.delete(&address) {
+        error!("Address not found in cuckoo filter");
+        return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
+    }
+
+    debug!("delete on cuckoo filter successful");
+
+    // Check cache
+    let mut cache_lock_result = cache.lock().await;
+    let cache_result = cache_lock_result
+        .del_data(address, value_id.as_deref())
+        .await;
+
+    match cache_result {
+        Ok(_) => {
+            info!("Data deleted from cache");
+            return delete_from_db(db, address, value_id.as_deref()).await
+        }
+        Err(_) => {
+            warn!("Cache deletion failed for address: {}", address);
+            return r.into_err_internal(ApiErrorType::Generic("Cache deletion failed".to_string()));
+        }
     }
 }

@@ -58,6 +58,11 @@ async fn main() {
             config.body_limit,
             config.cache_ttl,
         ))
+        .or(del_data(
+            db_conn.clone(),
+            cache_conn.clone(),
+            cuckoo_filter.clone(),
+        ))
         .recover(handle_rejection);
 
     print_welcome(&db_addr, &cache_addr);

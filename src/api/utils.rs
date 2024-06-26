@@ -2,7 +2,7 @@ use futures::lock::Mutex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, debug};
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 use valence_core::db::handler::KvStoreConnection;
@@ -23,7 +23,18 @@ pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
 
     let db_result: Result<Option<HashMap<String, String>>, _> =
         db.lock().await.get_data(&address, value_id).await;
-    let value_id = value_id.unwrap().to_string();
+    // let value_id = value_id.unwrap().to_string();
+    
+    let value_id: String = match value_id {
+        Some(value) => value.to_string(),
+        None => {
+            info!("No value id provided");
+            return r.into_err_internal(ApiErrorType::Generic("No value id provided".to_string()));
+        } 
+    };
+
+    debug!("Value ID: {:?}", value_id);
+    debug!("DB Result: {:?}", db_result);
 
     match db_result {
         Ok(data) => match data {
@@ -47,6 +58,32 @@ pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     }
 }
 
+/// Deletes data from the database
+///
+/// ### Arguments
+///
+/// * `db` - Database connection
+/// * `address` - Address to retrieve data from
+/// * `value_id` - Value ID to delete
+pub async fn delete_from_db<D: KvStoreConnection + Clone + Send + 'static>(
+    db: Arc<Mutex<D>>,
+    address: &str,
+    value_id: Option<&str>,
+) -> Result<JsonReply, JsonReply> {
+    let r = CallResponse::new("del_data");
+    info!("DELETE_FROM_DB requested with address: {:?}", address);
+
+    let db_result = db.lock().await.del_data(&address, value_id).await;
+
+    debug!("DB Result: {:?}", db_result);
+    match db_result {
+        Ok(_) => r.into_ok("Data deleted successfully", json_serialize_embed(address)),
+        Err(_) => r.into_err_internal(ApiErrorType::Generic(
+            format!("Failed to delete DB entry for {:?}", address)
+        )),
+    }
+}
+
 pub fn serialize_all_entries(data: HashMap<String, String>) -> HashMap<String, Value> {
     let mut output = HashMap::new();
 
@@ -55,7 +92,7 @@ pub fn serialize_all_entries(data: HashMap<String, String>) -> HashMap<String, V
             Ok(json_value) => {
                 output.insert(key, json_value);
             }
-            Err(e) => {
+            Err(_e) => {
                 output.insert(key, json!(value));
             }
         }
