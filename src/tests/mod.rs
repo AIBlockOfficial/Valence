@@ -32,8 +32,7 @@ async fn test_get_data_empty() {
     //
     // Act
     //
-    let filter = routes::get_data::<DbStub, DbStub, Value>(db_stub, cache_stub, cfilter)
-        .recover(handle_rejection);
+    let filter = routes::get_data(db_stub, cache_stub, cfilter).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
     //
@@ -67,13 +66,13 @@ async fn test_get_data() {
     db_stub
         .lock()
         .await
-        .set_data(TEST_VALID_ADDRESS, test_value.clone())
+        .set_data(TEST_VALID_ADDRESS, "blah", test_value.clone())
         .await
         .unwrap();
     cache_stub
         .lock()
         .await
-        .set_data(TEST_VALID_ADDRESS, test_value)
+        .set_data(TEST_VALID_ADDRESS, "blah", test_value)
         .await
         .unwrap();
     cfilter.lock().await.add(TEST_VALID_ADDRESS).unwrap();
@@ -81,8 +80,7 @@ async fn test_get_data() {
     //
     // Act
     //
-    let filter = routes::get_data::<DbStub, DbStub, Value>(db_stub, cache_stub, cfilter)
-        .recover(handle_rejection);
+    let filter = routes::get_data(db_stub, cache_stub, cfilter).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
     //

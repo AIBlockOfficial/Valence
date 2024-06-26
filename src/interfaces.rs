@@ -11,6 +11,13 @@ pub struct GetRequestData {
 pub struct SetRequestData {
     pub address: String,
     pub data: Value,
+    pub data_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetSaveData {
+    pub address: String,
+    pub data: Value,
 }
 
 pub struct EnvConfig {

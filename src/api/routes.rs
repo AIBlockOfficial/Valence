@@ -1,7 +1,5 @@
 use crate::api::handlers::{get_data_handler, set_data_handler};
 use futures::lock::Mutex;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::sync::Arc;
 use tracing::debug;
 use valence_core::api::interfaces::CFilterConnection;
@@ -13,19 +11,44 @@ use warp::{Filter, Rejection, Reply};
 
 // ========== BASE ROUTES ========== //
 
-/// GET /get_data
+/// GET /get_data_with_id
 ///
-/// Retrieves data associated with a given address
+/// Retrieves data associated with a given address and a given id
 ///
 /// ### Arguments
 ///
 /// * `db` - The database connection to use
 /// * `cache` - The cache connection to use
 /// * `cuckoo_filter` - The cuckoo filter connection to use
+pub fn get_data_with_id<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    cuckoo_filter: CFilterConnection,
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    debug!("Setting up get_data_with_id route");
+
+    warp::path("get_data")
+        .and(warp::get())
+        .and(sig_verify_middleware())
+        .and(warp::header::headers_cloned())
+        .and(warp::path::param::<String>())
+        .and(with_node_component(cache))
+        .and(with_node_component(db))
+        .and(with_node_component(cuckoo_filter))
+        .and_then(move |_, headers, value_id: String, cache, db, cf| {
+            // Add type annotation for headers parameter
+            debug!("GET_DATA requested");
+            map_api_res(get_data_handler(headers, Some(value_id), db, cache, cf))
+        })
+        .with(get_cors())
+}
+
 pub fn get_data<
     D: KvStoreConnection + Clone + Send + 'static,
     C: KvStoreConnection + Clone + Send + 'static,
-    T: Serialize + DeserializeOwned,
 >(
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
@@ -43,7 +66,7 @@ pub fn get_data<
         .and_then(move |_, headers, cache, db, cf| {
             // Add type annotation for headers parameter
             debug!("GET_DATA requested");
-            map_api_res(get_data_handler(headers, db, cache, cf))
+            map_api_res(get_data_handler(headers, None, db, cache, cf))
         })
         .with(get_cors())
 }
