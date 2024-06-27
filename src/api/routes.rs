@@ -1,4 +1,4 @@
-use crate::api::handlers::{get_data_handler, set_data_handler};
+use crate::api::handlers::{get_data_handler, set_data_handler, del_data_handler};
 use crate::db::handler::{CacheHandler, KvStoreConnection};
 use futures::lock::Mutex;
 use std::sync::Arc;
