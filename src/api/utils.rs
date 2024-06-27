@@ -55,7 +55,7 @@ pub fn serialize_all_entries(data: HashMap<String, String>) -> HashMap<String, V
             Ok(json_value) => {
                 output.insert(key, json_value);
             }
-            Err(e) => {
+            Err(_e) => {
                 output.insert(key, json!(value));
             }
         }
