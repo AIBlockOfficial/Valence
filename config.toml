@@ -13,4 +13,4 @@ body_limit = 4096
 cache_ttl = 600 # cache lifetime in seconds
 
 # Plug-in options
-market = true
+market = false
