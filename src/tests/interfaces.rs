@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use valence_core::db::handler::{CacheHandler, KvStoreConnection};
+use crate::db::handler::{CacheHandler, KvStoreConnection};
 use valence_core::utils::serialize_data;
 
 //========== STUB INTERFACES ==========//
