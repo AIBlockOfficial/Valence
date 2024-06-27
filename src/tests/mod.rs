@@ -4,11 +4,10 @@ pub mod interfaces;
 use crate::api::routes;
 use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID_SIG};
 use crate::tests::interfaces::DbStub;
+use crate::db::handler::KvStoreConnection;
 use futures::lock::Mutex;
-use serde_json::Value;
 use std::sync::Arc;
 use valence_core::api::utils::handle_rejection;
-use valence_core::db::handler::KvStoreConnection;
 use warp::Filter;
 
 //========== TESTS ==========//

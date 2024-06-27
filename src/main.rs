@@ -1,5 +1,6 @@
 // main.rs
 pub mod api;
+pub mod db;
 pub mod constants;
 pub mod interfaces;
 pub mod utils;
