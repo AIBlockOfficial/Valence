@@ -1,3 +1,4 @@
+use crate::db::handler::KvStoreConnection;
 use futures::lock::Mutex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -5,7 +6,6 @@ use std::sync::Arc;
 use tracing::info;
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
-use valence_core::db::handler::KvStoreConnection;
 
 /// Retrieve data from the database
 ///

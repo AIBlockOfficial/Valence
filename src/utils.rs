@@ -5,6 +5,9 @@ use crate::constants::{
     SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
 use crate::interfaces::EnvConfig;
+use crate::db::handler::KvStoreConnection;
+use crate::db::mongo_db::MongoDbConn;
+use crate::db::redis_cache::RedisCacheConn;
 use chrono::prelude::*;
 use cuckoofilter::{CuckooFilter, ExportedCuckooFilter};
 use futures::lock::Mutex;
@@ -13,9 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::sync::Arc;
 use tracing::info;
-use valence_core::db::handler::KvStoreConnection;
-use valence_core::db::mongo_db::MongoDbConn;
-use valence_core::db::redis_cache::RedisCacheConn;
 
 // ========== STORAGE SERIALIZATION FOR CUCKOO FILTER ========== //
 
