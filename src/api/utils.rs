@@ -3,7 +3,7 @@ use futures::lock::Mutex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{info, debug};
+use tracing::info;
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
 
@@ -13,6 +13,7 @@ use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply
 ///
 /// * `db` - Database connection
 /// * `address` - Address to retrieve data from
+/// * `value_id` - Value ID to retrieve (Optional, if not provided, all values for the address are retrieved)
 pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     db: Arc<Mutex<D>>,
     address: &str,
@@ -21,31 +22,13 @@ pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     let r = CallResponse::new("get_data");
     info!("RETRIEVE_FROM_DB requested with address: {:?}", address);
 
-    let db_result: Result<Option<HashMap<String, String>>, _> =
-        db.lock().await.get_data(&address, value_id).await;
-    // let value_id = value_id.unwrap().to_string();
-    
-    let value_id: String = match value_id {
-        Some(value) => value.to_string(),
-        None => {
-            info!("No value id provided");
-            return r.into_err_internal(ApiErrorType::Generic("No value id provided".to_string()));
-        } 
-    };
-
-    debug!("Value ID: {:?}", value_id);
-    debug!("DB Result: {:?}", db_result);
+    let db_result: Result<Option<HashMap<String, Value>>, _> =
+        db.lock().await.get_data(address, value_id).await;
 
     match db_result {
         Ok(data) => match data {
             Some(value) => {
-                info!("Data retrieved from DB");
-                let data = value
-                    .get(&value_id)
-                    .iter()
-                    .map(|v| serde_json::from_str(v).unwrap())
-                    .collect::<Vec<Value>>();
-                return r.into_ok("Data retrieved successfully", json_serialize_embed(data));
+                return r.into_ok("Data retrieved successfully", json_serialize_embed(value));
             }
             None => {
                 info!("Data not found in DB");
@@ -64,7 +47,7 @@ pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
 ///
 /// * `db` - Database connection
 /// * `address` - Address to retrieve data from
-/// * `value_id` - Value ID to delete
+/// * `value_id` - Value ID to delete (Optional, if not provided, all values for the address are deleted)
 pub async fn delete_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     db: Arc<Mutex<D>>,
     address: &str,
@@ -73,17 +56,22 @@ pub async fn delete_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     let r = CallResponse::new("del_data");
     info!("DELETE_FROM_DB requested with address: {:?}", address);
 
-    let db_result = db.lock().await.del_data(&address, value_id).await;
+    let db_result = db.lock().await.del_data(address, value_id).await;
 
-    debug!("DB Result: {:?}", db_result);
     match db_result {
         Ok(_) => r.into_ok("Data deleted successfully", json_serialize_embed(address)),
-        Err(_) => r.into_err_internal(ApiErrorType::Generic(
-            format!("Failed to delete DB entry for {:?}", address)
-        )),
+        Err(_) => r.into_err_internal(ApiErrorType::Generic(format!(
+            "Failed to delete DB entry for {:?}",
+            address
+        ))),
     }
 }
 
+/// Serialize all entries in a HashMap
+/// 
+/// ### Arguments
+///
+/// * `data` - HashMap of key-value pairs to serialize
 pub fn serialize_all_entries(data: HashMap<String, String>) -> HashMap<String, Value> {
     let mut output = HashMap::new();
 
@@ -97,6 +85,5 @@ pub fn serialize_all_entries(data: HashMap<String, String>) -> HashMap<String, V
             }
         }
     }
-
     output
 }

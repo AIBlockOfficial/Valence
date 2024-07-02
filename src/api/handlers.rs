@@ -5,7 +5,7 @@ use futures::lock::Mutex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info, warn, debug};
+use tracing::{error, info, debug};
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
@@ -18,7 +18,7 @@ use valence_core::utils::serialize_data;
 /// ### Arguments
 ///
 /// * `headers` - Request headers
-/// * `value_id` - Value ID to retrieve
+/// * `value_id` - Value ID to retrieve (Optional, if not provided, all values for the address are retrieved)
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
@@ -42,7 +42,7 @@ pub async fn get_data_handler<
 
     // Check if address is in cuckoo filter
     if !c_filter.lock().await.contains(&address) {
-        error!("Address not found in cuckoo filter");
+        error!("{}", ApiErrorType::CuckooFilterLookupFailed );
         return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
@@ -52,7 +52,7 @@ pub async fn get_data_handler<
         .get_data::<String>(address, value_id.as_deref())
         .await;
 
-    info!("Cache result: {:?}", cache_result);
+    debug!("Cache result: {:?}", cache_result);
 
     match cache_result {
         Ok(value) => {
@@ -83,15 +83,13 @@ pub async fn get_data_handler<
                 }
                 None => {
                     // Default to checking from DB if cache is empty
-                    warn!("Cache lookup failed for address: {}", address);
+                    debug!("Cache lookup failed for address: {}", address);
                     retrieve_from_db(db, address, value_id.as_deref()).await
                 }
             }
         }
         Err(_) => {
-            warn!("Cache lookup failed for address: {}", address);
-            warn!("Attempting to retrieve data from DB");
-
+            debug!("Attempting to retrieve data from DB");
             // Get data from DB
             retrieve_from_db(db, address, value_id.as_deref()).await
         }
@@ -180,7 +178,7 @@ pub async fn set_data_handler<
 /// /// ### Arguments
 ///
 /// * `headers` - Request headers
-/// * `value_id` - Value ID to retrieve
+/// * `value_id` - Value ID to retrieve (Optional, if not provided, all values for the address are deleted)
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
@@ -218,11 +216,11 @@ pub async fn del_data_handler<
 
     match cache_result {
         Ok(_) => {
-            info!("Data deleted from cache");
+            debug!("Data deleted from cache");
             return delete_from_db(db, address, value_id.as_deref()).await
         }
         Err(_) => {
-            warn!("Cache deletion failed for address: {}", address);
+            error!("Cache deletion failed for address: {}", address);
             return r.into_err_internal(ApiErrorType::Generic("Cache deletion failed".to_string()));
         }
     }
