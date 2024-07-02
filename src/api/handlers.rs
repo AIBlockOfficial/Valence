@@ -52,8 +52,6 @@ pub async fn get_data_handler<
         .get_data::<String>(address, value_id.as_deref())
         .await;
 
-    debug!("Cache result: {:?}", cache_result);
-
     match cache_result {
         Ok(value) => {
             match value {
@@ -61,9 +59,7 @@ pub async fn get_data_handler<
                     info!("Data retrieved from cache");
                     if let Some(id) = value_id {
                         if !value.contains_key(&id) {
-                            return r.into_err_internal(ApiErrorType::Generic(
-                                "Value ID not found".to_string(),
-                            ));
+                            return r.into_err_internal(ApiErrorType::ValueIdNotFound);
                         }
 
                         let data = value.get(&id).unwrap().clone();
@@ -83,7 +79,7 @@ pub async fn get_data_handler<
                 }
                 None => {
                     // Default to checking from DB if cache is empty
-                    debug!("Cache lookup failed for address: {}", address);
+                    debug!("Cache lookup failed for address: {}, attempting to retrieve data from DB", address);
                     retrieve_from_db(db, address, value_id.as_deref()).await
                 }
             }
@@ -221,7 +217,7 @@ pub async fn del_data_handler<
         }
         Err(_) => {
             error!("Cache deletion failed for address: {}", address);
-            return r.into_err_internal(ApiErrorType::Generic("Cache deletion failed".to_string()));
+            return r.into_err_internal(ApiErrorType::CacheDeleteFailed);
         }
     }
 }

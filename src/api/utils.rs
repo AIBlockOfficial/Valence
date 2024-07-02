@@ -31,13 +31,10 @@ pub async fn retrieve_from_db<D: KvStoreConnection + Clone + Send + 'static>(
                 return r.into_ok("Data retrieved successfully", json_serialize_embed(value));
             }
             None => {
-                info!("Data not found in DB");
-                return r.into_err_internal(ApiErrorType::Generic("Data not found".to_string()));
+                return r.into_err_internal(ApiErrorType::DataNotFound);
             }
         },
-        Err(_) => r.into_err_internal(ApiErrorType::Generic(
-            "Full Valence chain retrieval failed".to_string(),
-        )),
+        Err(_) => r.into_err_internal(ApiErrorType::DBQueryFailed),
     }
 }
 
@@ -61,14 +58,15 @@ pub async fn delete_from_db<D: KvStoreConnection + Clone + Send + 'static>(
     match db_result {
         Ok(_) => r.into_ok("Data deleted successfully", json_serialize_embed(address)),
         Err(_) => r.into_err_internal(ApiErrorType::Generic(format!(
-            "Failed to delete DB entry for {:?}",
+            "{:?} for {:?}",
+            ApiErrorType::ValueDeleteFailed,
             address
         ))),
     }
 }
 
 /// Serialize all entries in a HashMap
-/// 
+///
 /// ### Arguments
 ///
 /// * `data` - HashMap of key-value pairs to serialize
