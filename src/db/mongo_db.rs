@@ -3,7 +3,8 @@ use mongodb::bson::{doc, DateTime, Document};
 use mongodb::{options::ClientOptions, Client};
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
-use tracing::{event, span, trace, warn, Level};
+use std::fmt::Debug;
+use tracing::{debug, event, span, trace, Level};
 
 use super::handler::KvStoreConnection;
 
@@ -79,6 +80,7 @@ impl KvStoreConnection for MongoDbConn {
         value_id: &str,
         value: T,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        debug!("set_data {:?} / {}", key, value_id);
         // Tracing
         let span = span!(Level::TRACE, "MongoDbConn::set_data");
         let _enter = span.enter();
@@ -90,16 +92,18 @@ impl KvStoreConnection for MongoDbConn {
 
         // Check if the document with the given key exists
         let filter = doc! { "_id": key };
-        let existing_doc = collection.find_one(filter.clone(), None).await?;
+        let existing_doc: Option<Document> = collection.find_one(filter.clone(), None).await?;
 
         let mut mapping: HashMap<String, T> = if let Some(doc) = existing_doc {
             if doc.contains_key("data") {
                 // Deserialize the existing data
                 mongodb::bson::from_bson(doc.get("data").unwrap().clone())?
             } else {
+                debug!("No existing data");
                 HashMap::new()
             }
         } else {
+            debug!("No existing data");
             HashMap::new()
         };
 
@@ -108,6 +112,7 @@ impl KvStoreConnection for MongoDbConn {
 
         // Serialize the vec back to a BSON array
         let serialized_vec = mongodb::bson::to_bson(&mapping)?;
+        debug!("serialized_vec: {:?}", serialized_vec);
 
         // Create or update the document
         let update = doc! {
@@ -128,10 +133,54 @@ impl KvStoreConnection for MongoDbConn {
                 event!(Level::ERROR, "Failed to set data with error: {e}");
             }
         };
-
-        trace!("Data set successfully with expiry");
-
         Ok(())
+    }
+
+    async fn get_data<T: DeserializeOwned + Clone>(
+        &mut self,
+        key: &str,
+        value_id: Option<&str>,
+    ) -> Result<Option<HashMap<String, T>>, Box<dyn std::error::Error + Send + Sync>> {
+        // Tracing
+        let span = span!(Level::TRACE, "MongoDbConn::get_data");
+        let _enter = span.enter();
+
+        let collection = self
+            .client
+            .database(&self.index.db_name)
+            .collection::<Document>(&self.index.coll_name);
+
+        // Check if the document with the given key exists
+        let filter = doc! { "_id": key };
+        let doc_find = match collection.find_one(filter.clone(), None).await {
+            Ok(doc) => doc,
+            Err(e) => {
+                event!(Level::ERROR, "Failed to get data with error: {e}");
+                return Ok(None);
+            }
+        };
+
+        if let Some(doc) = doc_find {
+            // Deserialize the existing data
+            let mapping: HashMap<String, T> =
+                mongodb::bson::from_bson(doc.get("data").unwrap().clone())?;
+
+            if let Some(id) = value_id {
+                // If value_id is provided, return only the value with the given ID
+                if let Some(value) = mapping.get(id) {
+                    let mut result: HashMap<String, T> = HashMap::new();
+                    result.insert(id.to_string(), value.clone());
+                    return Ok(Some(result));
+                } else {
+                    // Value with the given ID not found
+                    event!(Level::ERROR, "Value with ID {id} not found for key {key}");
+                    return Ok(None);
+                }
+            }
+            return Ok(Some(mapping));
+        }
+        event!(Level::ERROR, "Data unsuccessfully deserialized");
+        return Ok(None);
     }
 
     async fn set_data_with_expiry<T: Serialize + std::marker::Send + DeserializeOwned>(
@@ -248,54 +297,5 @@ impl KvStoreConnection for MongoDbConn {
         }
 
         Ok(())
-    }
-
-    async fn get_data<T: Clone + DeserializeOwned>(
-        &mut self,
-        key: &str,
-        value_id: Option<&str>,
-    ) -> Result<Option<HashMap<String, T>>, Box<dyn std::error::Error + Send + Sync>> {
-        // Tracing
-        let span = span!(Level::TRACE, "MongoDbConn::get_data");
-        let _enter = span.enter();
-
-        let collection = self
-            .client
-            .database(&self.index.db_name)
-            .collection::<Document>(&self.index.coll_name);
-
-        // Check if the document with the given key exists
-        let filter = doc! { "_id": key };
-        let doc_find = match collection.find_one(filter.clone(), None).await {
-            Ok(doc) => doc,
-            Err(e) => {
-                event!(Level::ERROR, "Failed to get data with error: {e}");
-                return Ok(None);
-            }
-        };
-
-        if let Some(doc) = doc_find {
-            // Deserialize the existing data
-            let mapping: HashMap<String, T> =
-                mongodb::bson::from_bson(doc.get("data").unwrap().clone())?;
-
-            if let Some(id) = value_id {
-                // If value_id is provided, return only the value with the given ID
-                if let Some(value) = mapping.get(id) {
-                    let mut result: HashMap<String, T> = HashMap::new();
-                    result.insert(id.to_string(), value.clone());
-                    return Ok(Some(result));
-                } else {
-                    // Value with the given ID not found
-                    event!(Level::ERROR, "Value with ID {id} not found for key {key}");
-                    return Ok(None);
-                }
-            }
-            return Ok(Some(mapping));
-        }
-
-        warn!("Data unsuccessfully deserialized");
-
-        Ok(None)
     }
 }

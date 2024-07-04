@@ -157,9 +157,7 @@ pub async fn init_cuckoo_filter<T: KvStoreConnection>(
             info!("No cuckoo filter found in DB, initializing new one");
             let cf = CuckooFilter::new();
             save_cuckoo_filter_to_disk(&cf, db).await.unwrap();
-
             info!("New cuckoo filter saved to database");
-
             Ok(cf)
         }
     }
