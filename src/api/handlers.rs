@@ -202,8 +202,6 @@ pub async fn del_data_handler<
         return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
-    debug!("delete on cuckoo filter successful");
-
     // Check cache
     let mut cache_lock_result = cache.lock().await;
     let cache_result = cache_lock_result

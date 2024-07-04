@@ -34,7 +34,7 @@ async fn main() {
 
     info!("Connecting to Redis at {}", cache_addr);
     info!("Connecting to MongoDB at {}", db_addr);
-
+    
     let cache_conn = construct_redis_conn(&cache_addr).await;
     let db_conn = construct_mongodb_conn(&db_addr).await;
 
