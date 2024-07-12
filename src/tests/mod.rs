@@ -97,7 +97,7 @@ async fn test_set_data() {
     //
     // Arrange
     //
-    let req_body = "{\"address\":\"0x123\",\"data\":\"{\\\"Hello\\\":20}\"}";
+    let req_body = "{\"address\":\"0x123\",\"data\":\"{\\\"Hello\\\":20}\", \"data_id\":\"id\"}";
 
     let request = warp::test::request()
         .method("POST")

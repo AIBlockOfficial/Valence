@@ -41,7 +41,7 @@ impl KvStoreConnection for DbStub {
     async fn get_data<T: DeserializeOwned>(
         &mut self,
         _key: &str,
-        value_id: Option<&str>,
+        _value_id: Option<&str>,
     ) -> Result<Option<HashMap<String, T>>, Box<dyn std::error::Error + Send + Sync>> {
         if self.data.is_none() {
             return Ok(None);
@@ -61,7 +61,7 @@ impl KvStoreConnection for DbStub {
     async fn del_data(
         &mut self,
         _key: &str,
-        value_id: Option<&str>,
+        _value_id: Option<&str>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.data = None;
 
@@ -71,7 +71,7 @@ impl KvStoreConnection for DbStub {
     async fn set_data_with_expiry<T: Serialize + Send>(
         &mut self,
         _key: &str,
-        value_id: &str,
+        _value_id: &str,
         value: T,
         _seconds: usize,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -83,7 +83,7 @@ impl KvStoreConnection for DbStub {
     async fn set_data<T: Serialize + Send>(
         &mut self,
         _key: &str,
-        value_id: &str,
+        _value_id: &str,
         value: T,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.data = Some(serialize_data(&value));
