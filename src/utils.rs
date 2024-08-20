@@ -152,7 +152,10 @@ pub async fn init_cuckoo_filter<T: KvStoreConnection>(
     db: Arc<Mutex<T>>,
 ) -> Result<CuckooFilter<DefaultHasher>, String> {
     match load_cuckoo_filter_from_disk(db.clone()).await {
-        Ok(cf) => Ok(cf),
+        Ok(cf) => {
+            info!("Cuckoo filter loaded from DB");
+            Ok(cf)
+        }
         Err(_) => {
             info!("No cuckoo filter found in DB, initializing new one");
             let cf = CuckooFilter::new();
