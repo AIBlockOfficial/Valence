@@ -1,12 +1,14 @@
-use crate::interfaces::SetRequestData;
+use crate::api::utils::{delete_from_db, retrieve_from_db, serialize_all_entries};
+use crate::db::handler::{CacheHandler, KvStoreConnection};
+use crate::interfaces::{SetRequestData, SetSaveData};
 use futures::lock::Mutex;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info};
 use valence_core::api::errors::ApiErrorType;
 use valence_core::api::interfaces::CFilterConnection;
 use valence_core::api::responses::{json_serialize_embed, CallResponse, JsonReply};
-use valence_core::db::handler::{CacheHandler, KvStoreConnection};
 use valence_core::utils::serialize_data;
 
 // ========= BASE HANDLERS ========= //
@@ -15,7 +17,8 @@ use valence_core::utils::serialize_data;
 ///
 /// ### Arguments
 ///
-/// * `payload` - Request payload
+/// * `headers` - Request headers
+/// * `value_id` - Value ID to retrieve (Optional, if not provided, all values for the address are retrieved)
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
@@ -24,6 +27,7 @@ pub async fn get_data_handler<
     C: KvStoreConnection + Clone + Send + 'static,
 >(
     headers: warp::hyper::HeaderMap,
+    value_id: Option<String>,
     db: Arc<Mutex<D>>,
     cache: Arc<Mutex<C>>,
     c_filter: CFilterConnection,
@@ -38,41 +42,55 @@ pub async fn get_data_handler<
 
     // Check if address is in cuckoo filter
     if !c_filter.lock().await.contains(&address) {
-        error!("Address not found in cuckoo filter");
+        error!("{}", ApiErrorType::CuckooFilterLookupFailed);
         return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
     }
 
     // Check cache first
     let mut cache_lock_result = cache.lock().await;
-    let cache_result: Result<Option<Vec<Value>>, _> = cache_lock_result.get_data(address).await;
+    let cache_result: Result<Option<HashMap<String, String>>, _> = cache_lock_result
+        .get_data::<String>(address, value_id.as_deref())
+        .await;
 
     match cache_result {
         Ok(value) => {
-            let value_stable = value.unwrap_or_default();
+            match value {
+                Some(value) => {
+                    info!("Data retrieved from cache");
+                    if let Some(id) = value_id {
+                        if !value.contains_key(&id) {
+                            return r.into_err_internal(ApiErrorType::ValueIdNotFound);
+                        }
 
-            r.into_ok(
-                "Data retrieved successfully",
-                json_serialize_embed(value_stable),
-            )
+                        let data = value.get(&id).unwrap().clone();
+                        let final_result: Value = serde_json::from_str(&data).unwrap();
+                        return r.into_ok(
+                            "Data retrieved successfully",
+                            json_serialize_embed(final_result),
+                        );
+                    }
+
+                    let final_value = serialize_all_entries(value);
+
+                    return r.into_ok(
+                        "Data retrieved successfully",
+                        json_serialize_embed(final_value),
+                    );
+                }
+                None => {
+                    // Default to checking from DB if cache is empty
+                    debug!(
+                        "Cache lookup failed for address: {}, attempting to retrieve data from DB",
+                        address
+                    );
+                    retrieve_from_db(db, address, value_id.as_deref()).await
+                }
+            }
         }
         Err(_) => {
-            warn!("Cache lookup failed for address: {}", address);
-            warn!("Attempting to retrieve data from DB");
-
+            debug!("Attempting to retrieve data from DB");
             // Get data from DB
-            let mut lock_result = db.lock().await;
-            let db_result: Result<Option<Vec<Value>>, _> = lock_result.get_data(address).await;
-
-            match db_result {
-                Ok(value) => {
-                    let value_stable = value.unwrap_or_default();
-                    r.into_ok(
-                        "Data retrieved successfully",
-                        json_serialize_embed(value_stable),
-                    )
-                }
-                Err(_) => r.into_err_internal(ApiErrorType::DBInsertionFailed),
-            }
+            retrieve_from_db(db, address, value_id.as_deref()).await
         }
     }
 }
@@ -85,6 +103,7 @@ pub async fn get_data_handler<
 /// * `db` - Database connection
 /// * `cache` - Cache connection
 /// * `c_filter` - Cuckoo filter connection
+/// * `cache_ttl` - Cache TTL
 pub async fn set_data_handler<
     D: KvStoreConnection + Clone + Send + 'static,
     C: KvStoreConnection + CacheHandler + Clone + Send + 'static,
@@ -98,11 +117,22 @@ pub async fn set_data_handler<
     let r = CallResponse::new("set_data");
     info!("SET_DATA requested with payload: {:?}", payload);
 
+    let data_to_save: SetSaveData = {
+        SetSaveData {
+            address: payload.address.clone(),
+            data: payload.data.clone(),
+        }
+    };
+
     // Add to cache
     let cache_result = cache
         .lock()
         .await
-        .set_data(&payload.address.clone(), serialize_data(&payload.data))
+        .set_data(
+            &payload.address.clone(),
+            &payload.data_id,
+            serialize_data(&data_to_save),
+        )
         .await;
 
     // Add to DB
@@ -117,7 +147,7 @@ pub async fn set_data_handler<
 
             db.lock()
                 .await
-                .set_data(&payload.address, payload.data)
+                .set_data(&payload.address, &payload.data_id, data_to_save)
                 .await
         }
         Err(_) => {
@@ -139,5 +169,56 @@ pub async fn set_data_handler<
             json_serialize_embed(payload.address),
         ),
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
+    }
+}
+
+/// Route to del data from DB
+///
+/// /// ### Arguments
+///
+/// * `headers` - Request headers
+/// * `value_id` - Value ID to retrieve (Optional, if not provided, all values for the address are deleted)
+/// * `db` - Database connection
+/// * `cache` - Cache connection
+/// * `c_filter` - Cuckoo filter connection
+pub async fn del_data_handler<
+    D: KvStoreConnection + Clone + Send + 'static,
+    C: KvStoreConnection + Clone + Send + 'static,
+>(
+    headers: warp::hyper::HeaderMap,
+    value_id: Option<String>,
+    db: Arc<Mutex<D>>,
+    cache: Arc<Mutex<C>>,
+    c_filter: CFilterConnection,
+) -> Result<JsonReply, JsonReply> {
+    let r = CallResponse::new("del_data");
+    info!("DEL_DATA requested with headers: {:?}", headers);
+
+    let address = headers
+        .get("address")
+        .and_then(|n| n.to_str().ok())
+        .unwrap_or_default();
+
+    // delete address in cuckoo filter if no value_id is provided
+    if value_id.is_none() && !c_filter.lock().await.delete(&address) {
+        error!("Address not found in cuckoo filter");
+        return r.into_err_internal(ApiErrorType::CuckooFilterLookupFailed);
+    }
+
+    // Check cache
+    let mut cache_lock_result = cache.lock().await;
+    let cache_result = cache_lock_result
+        .del_data(address, value_id.as_deref())
+        .await;
+
+    match cache_result {
+        Ok(_) => {
+            debug!("Data deleted from cache");
+            return delete_from_db(db, address, value_id.as_deref()).await;
+        }
+        Err(_) => {
+            error!("Cache deletion failed for address: {}", address);
+            return r.into_err_internal(ApiErrorType::CacheDeleteFailed);
+        }
     }
 }

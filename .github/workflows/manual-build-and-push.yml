@@ -1,0 +1,16 @@
+name: manual-build-and-push
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    uses: aiblockofficial/workflows/.github/workflows/build.yml@main
+    with:
+      REGISTRY: ${{ vars.REGISTRY }}
+      REPOSITORY: ${{ vars.REPOSITORY }}

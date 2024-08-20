@@ -2,13 +2,12 @@ pub mod constants;
 pub mod interfaces;
 
 use crate::api::routes;
+use crate::db::handler::KvStoreConnection;
 use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID_SIG};
 use crate::tests::interfaces::DbStub;
 use futures::lock::Mutex;
-use serde_json::Value;
 use std::sync::Arc;
 use valence_core::api::utils::handle_rejection;
-use valence_core::db::handler::KvStoreConnection;
 use warp::Filter;
 
 //========== TESTS ==========//
@@ -32,8 +31,7 @@ async fn test_get_data_empty() {
     //
     // Act
     //
-    let filter = routes::get_data::<DbStub, DbStub, Value>(db_stub, cache_stub, cfilter)
-        .recover(handle_rejection);
+    let filter = routes::get_data(db_stub, cache_stub, cfilter).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
     //
@@ -67,13 +65,13 @@ async fn test_get_data() {
     db_stub
         .lock()
         .await
-        .set_data(TEST_VALID_ADDRESS, test_value.clone())
+        .set_data(TEST_VALID_ADDRESS, "blah", test_value.clone())
         .await
         .unwrap();
     cache_stub
         .lock()
         .await
-        .set_data(TEST_VALID_ADDRESS, test_value)
+        .set_data(TEST_VALID_ADDRESS, "blah", test_value)
         .await
         .unwrap();
     cfilter.lock().await.add(TEST_VALID_ADDRESS).unwrap();
@@ -81,9 +79,10 @@ async fn test_get_data() {
     //
     // Act
     //
-    let filter = routes::get_data::<DbStub, DbStub, Value>(db_stub, cache_stub, cfilter)
-        .recover(handle_rejection);
+    let filter = routes::get_data(db_stub, cache_stub, cfilter).recover(handle_rejection);
     let res = request.reply(&filter).await;
+
+    println!("{:?}", res.body());
 
     //
     // Assert
@@ -91,7 +90,7 @@ async fn test_get_data() {
     assert_eq!(res.status(), 200);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":[]}"
+        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":{}}"
     );
 }
 
@@ -100,7 +99,7 @@ async fn test_set_data() {
     //
     // Arrange
     //
-    let req_body = "{\"address\":\"0x123\",\"data\":\"{\\\"Hello\\\":20}\"}";
+    let req_body = "{\"address\":\"0x123\",\"data\":\"{\\\"Hello\\\":20}\", \"data_id\":\"id\"}";
 
     let request = warp::test::request()
         .method("POST")

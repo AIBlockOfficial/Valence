@@ -1,16 +1,48 @@
 use crate::constants::{
-    CONFIG_FILE, DRUID_CHARSET, DRUID_LENGTH, SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD,
-    SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL, SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD,
-    SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL, SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
+    CONFIG_FILE, CUCKOO_FILTER_KEY, CUCKOO_FILTER_VALUE_ID, DRUID_CHARSET, DRUID_LENGTH,
+    SETTINGS_BODY_LIMIT, SETTINGS_CACHE_PASSWORD, SETTINGS_CACHE_PORT, SETTINGS_CACHE_TTL,
+    SETTINGS_CACHE_URL, SETTINGS_DB_PASSWORD, SETTINGS_DB_PORT, SETTINGS_DB_PROTOCOL,
+    SETTINGS_DB_URL, SETTINGS_DEBUG, SETTINGS_EXTERN_PORT,
 };
+use crate::db::handler::KvStoreConnection;
+use crate::db::mongo_db::MongoDbConn;
+use crate::db::redis_cache::RedisCacheConn;
 use crate::interfaces::EnvConfig;
 use chrono::prelude::*;
+use cuckoofilter::{CuckooFilter, ExportedCuckooFilter};
 use futures::lock::Mutex;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
 use std::sync::Arc;
-use valence_core::db::handler::KvStoreConnection;
-use valence_core::db::mongo_db::MongoDbConn;
-use valence_core::db::redis_cache::RedisCacheConn;
+use tracing::info;
+
+// ========== STORAGE SERIALIZATION FOR CUCKOO FILTER ========== //
+
+/// Serializable struct for cuckoo filter
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct StorageReadyCuckooFilter {
+    values: Vec<u8>,
+    length: usize,
+}
+
+impl From<ExportedCuckooFilter> for StorageReadyCuckooFilter {
+    fn from(cf: ExportedCuckooFilter) -> Self {
+        StorageReadyCuckooFilter {
+            values: cf.values,
+            length: cf.length,
+        }
+    }
+}
+
+impl Into<ExportedCuckooFilter> for StorageReadyCuckooFilter {
+    fn into(self) -> ExportedCuckooFilter {
+        ExportedCuckooFilter {
+            values: self.values,
+            length: self.length,
+        }
+    }
+}
 
 // ========== DB UTILS ========== //
 
@@ -40,6 +72,95 @@ pub async fn construct_redis_conn(url: &str) -> Arc<Mutex<RedisCacheConn>> {
     };
 
     Arc::new(Mutex::new(redis_conn))
+}
+
+// ========== CUCKOO FILTER UTILS ========== //
+
+/// Saves the cuckoo filter to disk
+///
+/// ### Arguments
+///
+/// * `cf` - The cuckoo filter to save
+/// * `db` - The database connection
+pub async fn save_cuckoo_filter_to_disk<T: KvStoreConnection>(
+    cf: &CuckooFilter<DefaultHasher>,
+    db: Arc<Mutex<T>>,
+) -> Result<(), String> {
+    let cuckoo_export = cf.export();
+    let serializable_cuckoo: StorageReadyCuckooFilter = cuckoo_export.into();
+    let mut db_lock = db.lock().await;
+
+    match db_lock
+        .set_data(
+            CUCKOO_FILTER_KEY,
+            CUCKOO_FILTER_VALUE_ID,
+            serializable_cuckoo,
+        )
+        .await
+    {
+        Ok(_) => {
+            info!("Cuckoo filter saved to disk successfully");
+            Ok(())
+        }
+        Err(e) => Err(format!(
+            "Failed to save cuckoo filter to disk with error: {}",
+            e
+        )),
+    }
+}
+
+/// Loads the cuckoo filter from disk
+///
+/// ### Arguments
+///
+/// * `db` - The database connection
+pub async fn load_cuckoo_filter_from_disk<T: KvStoreConnection>(
+    db: Arc<Mutex<T>>,
+) -> Result<CuckooFilter<DefaultHasher>, String> {
+    let mut db_lock = db.lock().await;
+
+    match db_lock
+        .get_data::<StorageReadyCuckooFilter>(CUCKOO_FILTER_KEY, Some(CUCKOO_FILTER_VALUE_ID))
+        .await
+    {
+        Ok(data) => match data {
+            Some(data) => {
+                let cf: StorageReadyCuckooFilter =
+                    data.get(CUCKOO_FILTER_VALUE_ID).unwrap().clone();
+                info!("Found existing cuckoo filter. Loaded from disk successfully");
+
+                let cfe: ExportedCuckooFilter = cf.into();
+                let cf: CuckooFilter<DefaultHasher> = CuckooFilter::from(cfe);
+
+                Ok(cf)
+            }
+            None => Err("No cuckoo filter found in DB".to_string()),
+        },
+        Err(e) => Err(format!(
+            "Failed to load cuckoo filter from disk with error: {}",
+            e
+        )),
+    }
+}
+
+/// Initializes the cuckoo filter
+///
+/// ### Arguments
+///
+/// * `db` - The database connection
+pub async fn init_cuckoo_filter<T: KvStoreConnection>(
+    db: Arc<Mutex<T>>,
+) -> Result<CuckooFilter<DefaultHasher>, String> {
+    match load_cuckoo_filter_from_disk(db.clone()).await {
+        Ok(cf) => Ok(cf),
+        Err(_) => {
+            info!("No cuckoo filter found in DB, initializing new one");
+            let cf = CuckooFilter::new();
+            save_cuckoo_filter_to_disk(&cf, db).await.unwrap();
+            info!("New cuckoo filter saved to database");
+            Ok(cf)
+        }
+    }
 }
 
 // ========== CONFIG UTILS ========== //

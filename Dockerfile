@@ -31,19 +31,14 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 ####################################################################################################
 ## Final image
 ####################################################################################################
-FROM alpine
+FROM cgr.dev/chainguard/glibc-dynamic:latest
 
-# Import from builder.
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
+USER nonroot
 
 WORKDIR /valence
 
 # Copy our build
 COPY --from=builder /valence/target/x86_64-unknown-linux-musl/release/valence ./
 COPY --from=builder /valence/config.toml ./
-
-# Use an unprivileged user.
-USER valence:valence
 
 CMD ["/valence/valence"]

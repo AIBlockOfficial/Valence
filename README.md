@@ -33,8 +33,9 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#running-the-server">Running The Server</a></li>
-        </ul>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#running-the-server">Running the server</a></li>
+      </ul>
     </li>
     <li>
       <a href="#how-it-works">How it Works</a>
@@ -44,6 +45,7 @@
             <ul>
                 <li><a href="#set_data">set_data</a></li>
                 <li><a href="#get_data">get_data</a></li>
+                <li><a href="#del_data">del_data</a></li>
             </ul>
         </li>
         <li><a href="#further-work">Further Work</a></li>
@@ -89,7 +91,7 @@ docker build -t valence .
 
 ..
 
-### 🏎️ Running
+### 🏎️ Running the server
 
 To use the server as is, you can simply run the following in the root folder of the repo:
 
@@ -133,13 +135,16 @@ Sets data in the Redis instance and marks it for pending retrieval in the server
 }
 ```
 
-The body of the `set_data` call would contain the data being exchanged:
+The body of the `set_data` call would contain the `value_id` for that entry and the `data` being exchanged :
 
 ```json
 {
+    "data_id": "EntryId"
     "data": "hello Bob"
 }
 ```
+
+`data_id` is required and allows for mutiple entries under one address. If the `data_id` value is the same as an existing entry for that address, it is updated. If the `data_id` is unique it will be added to the hashmap for that address
 
 The headers that Alice sends in her call will be validated by the Valence, after which they'll be stored at Bob's address for his later retrieval using the `get_data` call.
 
@@ -152,11 +157,30 @@ Gets pending data from the server for a given address. To retrieve data for Bob,
 [
     {
         "address": "76e...dd6",     // Bob's public key address
-        "signature": "b9f...506",   // Bob's signature of the public key
         "public_key": "a4c...e45"   // Bob's public key corresponding to his address
+        "signature": "b9f...506",   // Bob's signature of the public key
     }
 ]
 ```
+
+If `data_id` is provided in the request (`get_data/[value_id]`), the specific entry associated to that id is retrieved. If no `data_id` is provided, the full hashmap is retrieved.
+
+Again, the Valence will validate the signature before returning the data to Bob.
+
+##### **<img src="https://img.shields.io/badge/DEL-FF0000" alt="DEL"/> `del_data`**
+Delete pending data from the server for a given address. To delete data for Bob, he only has to supply his credentials in the call header:
+
+```json
+[
+    {
+        "address": "76e...dd6",     // Bob's public key address
+        "public_key": "a4c...e45"   // Bob's public key corresponding to his address
+        "signature": "b9f...506",   // Bob's signature of the public key
+    }
+]
+```
+
+If `data_id` is provided in the request (`del_data/[value_id]`), the specific entry associated to that id is deleted. If no `data_id` is provided, the full hashmap is deleted.
 
 Again, the Valence will validate the signature before returning the data to Bob.
 
@@ -171,7 +195,7 @@ Again, the Valence will validate the signature before returning the data to Bob.
 - [x] Match public key to address for `get_data` (resolved by using address directly for retrieval)
 - [ ] Add a rate limiting mechanism
 - [x] Set Redis keys to expire (handle cache lifetimes)
-- [ ] Handle multiple data entries per address
+- [x] Handle multiple data entries per address
 - [ ] Add tests
 
 <p align="left">(<a href="#top">back to top</a>)</p>

@@ -1,0 +1,6 @@
+# Accept the risk
+
+
+# Ignore misconfigurations
+# https://avd.aquasec.com/misconfig/dockerfile/general/avd-ds-0001/
+AVD-DS-0001
