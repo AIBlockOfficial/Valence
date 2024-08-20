@@ -1,6 +1,7 @@
 use crate::api::utils::{delete_from_db, retrieve_from_db, serialize_all_entries};
 use crate::db::handler::{CacheHandler, KvStoreConnection};
 use crate::interfaces::{SetRequestData, SetSaveData};
+use crate::utils::save_cuckoo_filter_to_disk;
 use futures::lock::Mutex;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -48,15 +49,15 @@ pub async fn get_data_handler<
 
     // Check cache first
     let mut cache_lock_result = cache.lock().await;
-    let cache_result: Result<Option<HashMap<String, String>>, _> = cache_lock_result
-        .get_data::<String>(address, value_id.as_deref())
-        .await;
+    let cache_result: Result<Option<HashMap<String, String>>, _> =
+        cache_lock_result.get_data::<String>(address, None).await;
 
     match cache_result {
         Ok(value) => {
             match value {
                 Some(value) => {
-                    info!("Data retrieved from cache");
+                    info!("Data retrieved from cache: {:?}", value);
+
                     if let Some(id) = value_id {
                         if !value.contains_key(&id) {
                             return r.into_err_internal(ApiErrorType::ValueIdNotFound);
@@ -143,7 +144,10 @@ pub async fn set_data_handler<
                 .lock()
                 .await
                 .expire_entry(&payload.address, cache_ttl)
-                .await;
+                .await
+                .map_err(|err| {
+                    error!("Failed to expire cache entry: {:?}", err);
+                });
 
             db.lock()
                 .await
@@ -164,10 +168,19 @@ pub async fn set_data_handler<
     };
 
     match c_filter_result {
-        Ok(_) => r.into_ok(
-            "Data set successfully",
-            json_serialize_embed(payload.address),
-        ),
+        Ok(_) => {
+            // Save latest result to disk
+            let cf_lock = c_filter.lock().await;
+            if let Err(err) = save_cuckoo_filter_to_disk(&cf_lock, db).await {
+                error!("Failed to save cuckoo filter to disk: {:?}", err);
+            }
+
+            // Return success
+            r.into_ok(
+                "Data set successfully",
+                json_serialize_embed(payload.address),
+            )
+        }
         Err(_) => r.into_err_internal(ApiErrorType::CuckooFilterInsertionFailed),
     }
 }
