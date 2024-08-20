@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
+use crate::db::handler::{CacheHandler, KvStoreConnection};
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use crate::db::handler::{CacheHandler, KvStoreConnection};
 use valence_core::utils::serialize_data;
 
 //========== STUB INTERFACES ==========//
@@ -43,19 +43,15 @@ impl KvStoreConnection for DbStub {
         _key: &str,
         _value_id: Option<&str>,
     ) -> Result<Option<HashMap<String, T>>, Box<dyn std::error::Error + Send + Sync>> {
-        if self.data.is_none() {
-            return Ok(None);
-        }
-
         let data = match self.data.clone() {
             Some(d) => d,
-            None => return Ok(None),
+            None => {
+                println!("No data found");
+                return Ok(None);
+            }
         };
 
-        match get_de_data::<HashMap<String, T>>(data) {
-            Ok(d) => Ok(Some(d)),
-            Err(_) => Ok(None),
-        }
+        Ok(Some(get_de_data(data)))
     }
 
     async fn del_data(
@@ -92,6 +88,16 @@ impl KvStoreConnection for DbStub {
     }
 }
 
-fn get_de_data<T: DeserializeOwned>(v: String) -> Result<T, serde_json::Error> {
-    serde_json::from_str(&v)
+fn get_de_data<T: DeserializeOwned>(v: String) -> HashMap<String, T> {
+    let value: serde_json::Value = match serde_json::from_str(&v) {
+        Ok(v) => v,
+        Err(_) => {
+            println!("Failed to deserialize data");
+            return HashMap::new();
+        }
+    };
+    let de_map: HashMap<String, T> =
+        serde_json::from_str(&value.as_str().unwrap()).unwrap_or(HashMap::new());
+
+    de_map
 }

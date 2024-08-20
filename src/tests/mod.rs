@@ -2,9 +2,9 @@ pub mod constants;
 pub mod interfaces;
 
 use crate::api::routes;
+use crate::db::handler::KvStoreConnection;
 use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID_SIG};
 use crate::tests::interfaces::DbStub;
-use crate::db::handler::KvStoreConnection;
 use futures::lock::Mutex;
 use std::sync::Arc;
 use valence_core::api::utils::handle_rejection;
@@ -82,13 +82,15 @@ async fn test_get_data() {
     let filter = routes::get_data(db_stub, cache_stub, cfilter).recover(handle_rejection);
     let res = request.reply(&filter).await;
 
+    println!("{:?}", res.body());
+
     //
     // Assert
     //
     assert_eq!(res.status(), 200);
     assert_eq!(
         res.body(),
-        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":null}"
+        "{\"status\":\"Success\",\"reason\":\"Data retrieved successfully\",\"route\":\"get_data\",\"content\":{}}"
     );
 }
 
