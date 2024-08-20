@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use crate::db::handler::{CacheHandler, KvStoreConnection};
 use async_trait::async_trait;

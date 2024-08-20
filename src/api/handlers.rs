@@ -48,15 +48,15 @@ pub async fn get_data_handler<
 
     // Check cache first
     let mut cache_lock_result = cache.lock().await;
-    let cache_result: Result<Option<HashMap<String, String>>, _> = cache_lock_result
-        .get_data::<String>(address, value_id.as_deref())
-        .await;
+    let cache_result: Result<Option<HashMap<String, String>>, _> =
+        cache_lock_result.get_data::<String>(address, None).await;
 
     match cache_result {
         Ok(value) => {
             match value {
                 Some(value) => {
-                    info!("Data retrieved from cache");
+                    info!("Data retrieved from cache: {:?}", value);
+
                     if let Some(id) = value_id {
                         if !value.contains_key(&id) {
                             return r.into_err_internal(ApiErrorType::ValueIdNotFound);
