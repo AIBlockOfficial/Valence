@@ -46,8 +46,8 @@ async fn main() {
 
     info!("Cuckoo filter initialized successfully");
 
-    let routes = get_data(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone())
-        .or(get_data_with_id(
+    let routes = get_data_with_id(db_conn.clone(), cache_conn.clone(), cuckoo_filter.clone())
+        .or(get_data(
             db_conn.clone(),
             cache_conn.clone(),
             cuckoo_filter.clone(),
