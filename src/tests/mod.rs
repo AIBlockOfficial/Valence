@@ -129,3 +129,39 @@ async fn test_set_data() {
         "{\"status\":\"Success\",\"reason\":\"Data set successfully\",\"route\":\"set_data\",\"content\":\"0x123\"}"
     );
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_sequential_set_data_requests() {
+    // Arrange
+    let db_stub = Arc::new(Mutex::new(DbStub::init("").await.unwrap()));
+    let cache_stub = Arc::new(Mutex::new(DbStub::init("").await.unwrap()));
+    let cfilter = Arc::new(Mutex::new(cuckoofilter::CuckooFilter::new()));
+    let filter = routes::set_data(db_stub.clone(), cache_stub.clone(), cfilter.clone(), 1000, 600).recover(handle_rejection);
+
+    for i in 0..3 {
+        let data_id = format!("test_id_{}", i);
+        let data = format!("{{\"value\": \"test_{}\"}}", i);
+        let req_body = format!(
+            "{{\"address\":\"0x123\",\"data\":\"{}\", \"data_id\":\"{}\"}}",
+            data, data_id
+        );
+
+        // Act
+        let request = warp::test::request()
+            .method("POST")
+            .header("public_key", TEST_VALID_PUB_KEY)
+            .header("address", TEST_VALID_ADDRESS)
+            .header("signature", TEST_VALID_SIG)
+            .body(&req_body)
+            .path("/set_data");
+
+        let res = request.reply(&filter).await;
+
+        // Assert
+        assert_eq!(res.status(), 200);
+        assert_eq!(
+            res.body(),
+            "{\"status\":\"Success\",\"reason\":\"Data set successfully\",\"route\":\"set_data\",\"content\":\"0x123\"}"
+        );
+    }
+}
