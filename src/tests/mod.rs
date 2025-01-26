@@ -1,7 +1,7 @@
 pub mod constants;
 pub mod interfaces;
 
-use crate::api::request::SetRequestData;
+use crate::interfaces::SetRequestData;
 use crate::api::routes;
 use crate::db::handler::KvStoreConnection;
 use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID_SIG};
@@ -147,7 +147,7 @@ async fn test_set_data_multiple_requests() {
 
         let set_request = SetRequestData {
             address: TEST_VALID_ADDRESS.to_string(),
-            data: json!({ &key: &value }).to_string(),
+            data: json!({ &key: &value }),
             data_id: data_id.clone(),
         };
 
@@ -164,7 +164,7 @@ async fn test_set_data_multiple_requests() {
         let res = request.reply(&filter).await;
 
         assert_eq!(res.status(), 200);
-        let res_body: serde_json::Value = serde_json::from_str(res.body()).unwrap();
+        let res_body: serde_json::Value = serde_json::from_str(std::str::from_utf8(res.body()).unwrap()).unwrap();
         assert_eq!(res_body["status"], "Success");
         assert_eq!(res_body["reason"], "Data set successfully");
         assert_eq!(res_body["route"], "set_data");
@@ -172,10 +172,10 @@ async fn test_set_data_multiple_requests() {
 
         expected_entries.insert(data_id.clone(), (key, value));
 
-        let db_lock = db.lock().await;
+        let mut db_lock = db.lock().await;
         for (id, (expected_key, expected_value)) in &expected_entries {
-            let stored_data = db_lock.get_data(TEST_VALID_ADDRESS, id).await.unwrap();
-            assert_eq!(stored_data, json!({ expected_key: expected_value }).to_string());
+            let stored_data = db_lock.get_data::<serde_json::Value>(TEST_VALID_ADDRESS, Some(id)).await.unwrap().unwrap();
+            assert_eq!(stored_data[expected_key], *expected_value);
         }
     }
 }
