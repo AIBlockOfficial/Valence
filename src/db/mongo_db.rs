@@ -14,6 +14,11 @@ pub struct MongoDbIndex {
     pub coll_name: String,
 }
 
+/// Manages connections to MongoDB, handling connection pooling and database operations.
+///
+/// This struct encapsulates a MongoDB client and index information, providing methods
+/// for performing CRUD operations. It uses the MongoDB driver's built-in connection pool
+/// for efficient database interactions.
 #[derive(Debug, Clone)]
 pub struct MongoDbConn {
     pub client: Client,
@@ -45,8 +50,22 @@ impl MongoDbConn {
     }
 }
 
+/// Implements the `KvStoreConnection` trait for MongoDB, enabling key-value operations.
+///
+/// Methods interact with MongoDB documents where each key corresponds to a document ID.
+/// Values are stored in a `data` map within the document, supporting nested key-value storage.
 #[async_trait]
 impl KvStoreConnection for MongoDbConn {
+    /// Initializes a connection to the MongoDB server using the provided URI.
+    ///
+    /// # Arguments
+    /// * `url` - MongoDB connection URI (e.g., `mongodb://user:pass@host:port/dbname?options`).
+    ///
+    /// # Connection Pooling
+    /// The client utilizes connection pooling as configured via the URI options.
+    ///
+    /// # Errors
+    /// Returns an error if the URI is invalid or if connecting to the server fails.
     async fn init(url: &str) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         // Tracing
         let span = span!(Level::TRACE, "MongoDbConn::init");
@@ -74,6 +93,15 @@ impl KvStoreConnection for MongoDbConn {
         Ok(MongoDbConn { client, index })
     }
 
+    /// Inserts or updates a document in the specified collection.
+    ///
+    /// # Arguments
+    /// * `key` - The document's unique `_id` field value.
+    /// * `value_id` - Key within the document's `data` map to store the value.
+    /// * `value` - Data to store, serialized into BSON.
+    ///
+    /// The value is serialized using `bson::to_bson`, which may return an error
+    /// for unsupported types. Existing entries with the same `value_id` are overwritten.
     async fn set_data<T: Serialize + std::marker::Send + DeserializeOwned>(
         &mut self,
         key: &str,
@@ -136,6 +164,14 @@ impl KvStoreConnection for MongoDbConn {
         Ok(())
     }
 
+    /// Retrieves data from the specified collection's document.
+    ///
+    /// # Arguments
+    /// * `key` - The document's `_id` field value to query.
+    /// * `value_id` - Optional specific entry within the document's `data` map.
+    ///
+    /// Returns `None` if the document or entry doesn't exist. Data is deserialized
+    /// from BSON, which may fail if the stored format doesn't match `T`.
     async fn get_data<T: DeserializeOwned + Clone>(
         &mut self,
         key: &str,
@@ -183,6 +219,16 @@ impl KvStoreConnection for MongoDbConn {
         return Ok(None);
     }
 
+    /// Stores data with an expiration time using MongoDB's TTL feature.
+    ///
+    /// # Arguments
+    /// * `key` - Document's `_id` field value.
+    /// * `value_id` - Key within the document's `data` map.
+    /// * `value` - Data to store, serialized to BSON.
+    /// * `seconds` - TTL in seconds until document expiration.
+    ///
+    /// Requires a TTL index on the `expiry` field. The document is automatically
+    /// removed by MongoDB after `seconds` seconds.
     async fn set_data_with_expiry<T: Serialize + std::marker::Send + DeserializeOwned>(
         &mut self,
         key: &str,
@@ -242,6 +288,14 @@ impl KvStoreConnection for MongoDbConn {
         Ok(())
     }
 
+    /// Deletes data from the specified collection.
+    ///
+    /// # Arguments
+    /// * `key` - Document's `_id` field to delete.
+    /// * `value_id` - If provided, removes only this entry from the `data` map.
+    ///
+    /// When `value_id` is specified, only that entry is removed. If `None`,
+    /// the entire document is deleted.
     async fn del_data(
         &mut self,
         key: &str,
