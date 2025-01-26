@@ -1,12 +1,15 @@
 pub mod constants;
 pub mod interfaces;
 
+use crate::interfaces::SetRequestData;
 use crate::api::routes;
 use crate::db::handler::KvStoreConnection;
 use crate::tests::constants::{TEST_VALID_ADDRESS, TEST_VALID_PUB_KEY, TEST_VALID_SIG};
 use crate::tests::interfaces::DbStub;
 use futures::lock::Mutex;
+use serde_json::json;
 use std::sync::Arc;
+use uuid::Uuid;
 use valence_core::api::utils::handle_rejection;
 use warp::Filter;
 
@@ -128,4 +131,51 @@ async fn test_set_data() {
         res.body(),
         "{\"status\":\"Success\",\"reason\":\"Data set successfully\",\"route\":\"set_data\",\"content\":\"0x123\"}"
     );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_set_data_multiple_requests() {
+    let db = Arc::new(Mutex::new(DbStub::init("").await.unwrap()));
+    let cache = Arc::new(Mutex::new(DbStub::init("").await.unwrap()));
+    let cfilter = Arc::new(Mutex::new(cuckoofilter::CuckooFilter::new()));
+    let mut expected_entries = std::collections::HashMap::new();
+
+    for _ in 0..3 {
+        let key = Uuid::new_v4().to_string();
+        let value = Uuid::new_v4().to_string();
+        let data_id = Uuid::new_v4().to_string();
+
+        let set_request = SetRequestData {
+            address: TEST_VALID_ADDRESS.to_string(),
+            data: json!({ &key: &value }),
+            data_id: data_id.clone(),
+        };
+
+        let request = warp::test::request()
+            .method("POST")
+            .header("public_key", TEST_VALID_PUB_KEY)
+            .header("address", TEST_VALID_ADDRESS)
+            .header("signature", TEST_VALID_SIG)
+            .path("/set_data")
+            .json(&set_request);
+
+        let filter = routes::set_data(db.clone(), cache.clone(), cfilter.clone(), 1000, 600)
+            .recover(handle_rejection);
+        let res = request.reply(&filter).await;
+
+        assert_eq!(res.status(), 200);
+        let res_body: serde_json::Value = serde_json::from_str(std::str::from_utf8(res.body()).unwrap()).unwrap();
+        assert_eq!(res_body["status"], "Success");
+        assert_eq!(res_body["reason"], "Data set successfully");
+        assert_eq!(res_body["route"], "set_data");
+        assert_eq!(res_body["content"], TEST_VALID_ADDRESS);
+
+        expected_entries.insert(data_id.clone(), (key, value));
+
+        let mut db_lock = db.lock().await;
+        for (id, (expected_key, expected_value)) in &expected_entries {
+            let stored_data = db_lock.get_data::<serde_json::Value>(TEST_VALID_ADDRESS, Some(id)).await.unwrap().unwrap();
+            assert_eq!(stored_data[expected_key], *expected_value);
+        }
+    }
 }
