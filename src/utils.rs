@@ -68,7 +68,7 @@ pub async fn construct_mongodb_conn(url: &str) -> Arc<Mutex<MongoDbConn>> {
 pub async fn construct_redis_conn(url: &str) -> Arc<Mutex<RedisCacheConn>> {
     let redis_conn = match RedisCacheConn::init(url).await {
         Ok(conn) => conn,
-        Err(e) => panic!("Failed to connect to MongoDB with error: {}", e),
+        Err(e) => panic!("Failed to connect to Redis with error: {}", e),
     };
 
     Arc::new(Mutex::new(redis_conn))
