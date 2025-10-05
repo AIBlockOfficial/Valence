@@ -170,7 +170,13 @@ pub async fn init_cuckoo_filter<T: KvStoreConnection>(
 
 /// Loads the config file
 pub fn load_config() -> EnvConfig {
-    let settings = config::Config::builder().add_source(config::File::with_name(CONFIG_FILE));
+    // Load variables from a .env file into process environment if present
+    dotenvy::dotenv().ok();
+
+    // File-sourced config first, then environment with higher precedence
+    let settings = config::Config::builder()
+        .add_source(config::File::with_name(CONFIG_FILE))
+        .add_source(config::Environment::default());
 
     match settings.build() {
         Ok(config) => EnvConfig {
@@ -183,7 +189,7 @@ pub fn load_config() -> EnvConfig {
                 .unwrap_or(SETTINGS_DB_URL.to_string()),
             db_user: config
                 .get_string("db_user")
-                .unwrap_or(SETTINGS_DB_URL.to_string()),
+                .unwrap_or(SETTINGS_DB_USER.to_string()),
             db_protocol: config
                 .get_string("db_protocol")
                 .unwrap_or(SETTINGS_DB_PROTOCOL.to_string()),
