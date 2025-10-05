@@ -26,11 +26,11 @@ async fn main() {
 
     let config = load_config();
     let cache_addr = format!("{}:{}", config.cache_url, config.cache_port);
-    // let db_addr = format!(
-    //     "{}{}:{}@{}:{}",
-    //     config.db_protocol, config.db_user, config.db_password, config.db_url, config.db_port
-    // );
-    let db_addr = format!("{}{}:{}", config.db_protocol, config.db_url, config.db_port);
+    let db_addr = format!(
+        "{}{}:{}@{}:{}",
+        config.db_protocol, config.db_user, config.db_password, config.db_url, config.db_port
+    );
+    //let db_addr = format!("{}{}:{}", config.db_protocol, config.db_url, config.db_port);
 
     info!("Connecting to Redis at {}", cache_addr);
     info!("Connecting to MongoDB at {}", db_addr);
