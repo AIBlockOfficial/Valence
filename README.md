@@ -1,3 +1,5 @@
+> **Repository moved:** Active development continues at **[lineage-foundation/valence](https://github.com/lineage-foundation/valence)**. Please open issues and pull requests there. This AIBlockOfficial repository is retained for history.
+
 <div id="top"></div>
 
 <!-- PROJECT LOGO -->
