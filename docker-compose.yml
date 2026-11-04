@@ -18,7 +18,7 @@ services:
     volumes:
       - cache:/data/cache
   db:
-    image: bitnami/mongodb:7.0.5
+    image: soldevelo/mongodb:7.0.15
     networks:
       - app-tier
     restart: always
